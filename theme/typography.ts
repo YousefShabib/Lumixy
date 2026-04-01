@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 
 export const typography = {
   fontFamily: {
-    regular: 'CairoRegular',
-    bold: 'CairoBold',
+    regular: 'Cairo_400Regular',
+    bold: 'Cairo_700Bold',
   },
   fontSize: {
     small: 12,

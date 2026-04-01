@@ -4,7 +4,7 @@ import React from 'react';
 
 import { colors, typography } from '@/theme';
 
-export default function TabLayout() {
+export default function AdminTabsLayout() {
   return (
     <Tabs
       screenOptions={{
@@ -49,12 +49,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="about"
+        name="profile"
         options={{
-          title: 'حول',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="information-circle-outline" size={size} color={color} />
-          ),
+          title: 'بروفايل',
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
         }}
       />
     </Tabs>

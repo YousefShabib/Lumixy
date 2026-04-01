@@ -1,16 +1,13 @@
-import { Link } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, typography } from '@/theme';
 
-export default function NotFoundScreen() {
+export default function AdminHomeScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>الصفحة غير موجودة</Text>
-      <Link href="/entry" style={styles.link}>
-        العودة لشاشة البداية
-      </Link>
+      <Text style={styles.title}>الرئيسية</Text>
+      <Text style={styles.text}>هذه الرئيسية الخاصة بالأدمن.</Text>
     </View>
   );
 }
@@ -19,19 +16,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     padding: 24,
   },
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
-    fontSize: 24,
-    marginBottom: 16,
+    fontSize: 28,
+    marginBottom: 10,
   },
-  link: {
-    color: colors.primaryLight,
+  text: {
+    color: colors.textSecondary,
     fontFamily: typography.fontFamily.regular,
-    fontSize: 16,
+    fontSize: 15,
+    textAlign: 'center',
   },
 });
