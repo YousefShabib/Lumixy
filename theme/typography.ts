@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 export const typography = {
   fontFamily: {
     regular: 'Cairo_400Regular',
+    semiBold: 'Cairo_600SemiBold',
     bold: 'Cairo_700Bold',
   },
   fontSize: {
@@ -14,6 +15,7 @@ export const typography = {
   fontWeight: {
     regular: '400' as const,
     medium: '500' as const,
+    semiBold: '600' as const,
     bold: '700' as const,
   },
 };
