@@ -1,38 +1,90 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import AdminDetailShell from '@/components/admin/admin-detail-shell';
+import StatusBanner from '@/components/ui/status-banner';
+import { useAdminSession } from '@/contexts/admin-session-context';
 import { colors, typography } from '@/theme';
 
 export default function ProfileDetailsScreen() {
-  const [fullName, setFullName] = useState('Admin Lumixy');
-  const [phone, setPhone] = useState('+970 59 123 4567');
-  const [email, setEmail] = useState('admin@lumixy.app');
-  const [notice, setNotice] = useState('تمت مزامنة البيانات الحالية مع لوحة الإدارة.');
+  const { adminUser, updateProfile } = useAdminSession();
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
-    setNotice('تم تحديث المعلومات الشخصية بنجاح وسيظهر التعديل لجميع المدراء الآن.');
-    console.log('Save Profile', { fullName, phone, email });
+  useEffect(() => {
+    if (!adminUser) {
+      return;
+    }
+
+    setFullName(adminUser.full_name);
+    setPhone(adminUser.phone ?? '');
+    setEmail(adminUser.email);
+  }, [adminUser]);
+
+  const handleSave = async () => {
+    const trimmedName = fullName.trim();
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName || !trimmedEmail) {
+      setErrorMessage('الاسم الكامل والبريد الإلكتروني مطلوبان قبل الحفظ.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsSaving(true);
+
+    const result = await updateProfile({
+      full_name: trimmedName,
+      email: trimmedEmail,
+      phone: trimmedPhone,
+    });
+
+    if (result.success) {
+      Alert.alert('تم الحفظ', 'تم تحديث المعلومات الشخصية بنجاح.');
+    } else {
+      setErrorMessage(result.message);
+    }
+
+    setIsSaving(false);
   };
 
   return (
     <AdminDetailShell
       badge="الملف الشخصي"
-      notice={notice}
-      noticeTone="success"
-      subtitle="عدّل بيانات الحساب الأساسية بسهولة"
+      subtitle="عدّل بيانات الحساب الأساسية وسيتم حفظها فوراً على الخادم"
       title="المعلومات الشخصية">
       <View style={styles.card}>
+        {errorMessage ? <StatusBanner message={errorMessage} tone="error" /> : null}
+
         <View style={styles.fieldBlock}>
           <Text style={styles.label}>الاسم الكامل</Text>
-          <TextInput value={fullName} onChangeText={setFullName} style={styles.input} />
+          <TextInput
+            value={fullName}
+            onChangeText={setFullName}
+            style={styles.input}
+            textAlign="right"
+            placeholder="أدخل الاسم الكامل"
+            placeholderTextColor={colors.textMuted}
+          />
         </View>
 
         <View style={styles.fieldBlock}>
           <Text style={styles.label}>رقم الجوال</Text>
-          <TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" style={styles.input} />
+          <TextInput
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            style={styles.input}
+            textAlign="right"
+            placeholder="+97059XXXXXXX"
+            placeholderTextColor={colors.textMuted}
+          />
         </View>
 
         <View style={styles.fieldBlock}>
@@ -43,6 +95,9 @@ export default function ProfileDetailsScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             style={styles.input}
+            textAlign="right"
+            placeholder="admin@lumixy.app"
+            placeholderTextColor={colors.textMuted}
           />
         </View>
 
@@ -52,16 +107,20 @@ export default function ProfileDetailsScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.infoBox}>
           <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
-          <Text style={styles.infoText}>أي تحديث هنا ينعكس مباشرة على بطاقة الأدمن والبيانات العامة.</Text>
+          <Text style={styles.infoText}>تأكد من صحة البيانات قبل الحفظ حتى تظهر بشكل صحيح داخل الحساب.</Text>
         </LinearGradient>
 
-        <Pressable onPress={handleSave}>
+        <Pressable onPress={handleSave} disabled={isSaving}>
           <LinearGradient
             colors={[colors.primaryLight, colors.primary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>حفظ التغييرات</Text>
+            style={[styles.primaryButton, isSaving && styles.disabledButton]}>
+            {isSaving ? (
+              <ActivityIndicator color={colors.text} />
+            ) : (
+              <Text style={styles.primaryButtonText}>حفظ التغييرات</Text>
+            )}
           </LinearGradient>
         </Pressable>
       </View>
@@ -96,6 +155,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     paddingHorizontal: 16,
     fontSize: 15,
+    fontFamily: typography.fontFamily.regular,
   },
   infoBox: {
     minHeight: 54,
@@ -119,6 +179,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
+  },
+  disabledButton: {
+    opacity: 0.76,
   },
   primaryButtonText: {
     color: colors.text,

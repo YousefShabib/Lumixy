@@ -13,6 +13,7 @@ import { I18nManager, Platform, Text, TextInput } from 'react-native';
 import 'react-native-reanimated';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AdminSessionProvider } from '@/contexts/admin-session-context';
 import { colors } from '@/theme';
 
 void SplashScreen.preventAutoHideAsync();
@@ -96,10 +97,14 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider value={navigationTheme}>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
-        <StatusBar style="light" />
-      </ThemeProvider>
+      <AdminSessionProvider>
+        <ThemeProvider value={navigationTheme}>
+          <Stack
+            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}
+          />
+          <StatusBar style="light" />
+        </ThemeProvider>
+      </AdminSessionProvider>
     </SafeAreaProvider>
   );
 }

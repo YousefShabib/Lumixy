@@ -77,7 +77,6 @@ export default function AdminTabsLayout() {
       <Tabs.Screen name="profile-details" options={hiddenScreenOptions} />
       <Tabs.Screen name="add-admin" options={hiddenScreenOptions} />
       <Tabs.Screen name="notifications-center" options={hiddenScreenOptions} />
-      <Tabs.Screen name="security-center" options={hiddenScreenOptions} />
     </Tabs>
   );
 }

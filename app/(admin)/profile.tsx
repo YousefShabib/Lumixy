@@ -2,10 +2,11 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useAdminSession } from '@/contexts/admin-session-context';
 import { colors, typography } from '@/theme';
 
 const profileLinks = [
@@ -19,27 +20,30 @@ const profileLinks = [
   {
     id: 'add-admin',
     title: 'إضافة أدمن جديد',
-    subtitle: 'دعوة مسؤول جديد ومنحه صلاحية مناسبة',
+    subtitle: 'إنشاء حساب إداري جديد من داخل لوحة التحكم',
     icon: 'person-add-outline' as const,
     route: '/(admin)/add-admin' as const,
-  },
-  {
-    id: 'notifications',
-    title: 'التنبيهات والإشعارات',
-    subtitle: 'تحديد الرسائل المهمة وتنبيهات الموافقات',
-    icon: 'notifications-outline' as const,
-    route: '/(admin)/notifications-center' as const,
-  },
-  {
-    id: 'security',
-    title: 'الأمان والجلسات',
-    subtitle: 'حماية الحساب ومراجعة الأجهزة النشطة',
-    icon: 'shield-checkmark-outline' as const,
-    route: '/(admin)/security-center' as const,
   },
 ];
 
 export default function AdminProfileScreen() {
+  const { adminUser, logout, refreshProfile } = useAdminSession();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    const result = await refreshProfile();
+    Alert.alert(result.success ? 'تم التحديث' : 'تعذر التحديث', result.message);
+    setIsRefreshing(false);
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    router.replace('/');
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="light" />
@@ -66,19 +70,34 @@ export default function AdminProfileScreen() {
               <Text style={styles.logoText}>LUMIXY</Text>
             </View>
 
-            <Text style={styles.title}>حساب الأدمن</Text>
-            <Text style={styles.subtitle}>
-              نقطة إدارة مبسطة للوصول السريع إلى البيانات، التنبيهات، والحماية.
-            </Text>
+            {adminUser ? (
+              <>
+                <Text style={styles.title}>{adminUser.full_name}</Text>
+                <Text style={styles.subtitle}>
+                  {adminUser.email}
+                  {adminUser.phone ? `\n${adminUser.phone}` : '\nلا يوجد رقم جوال محفوظ حالياً'}
+                </Text>
+              </>
+            ) : (
+              <ActivityIndicator
+                size="large"
+                color={colors.primaryLight}
+                style={styles.loadingIndicator}
+              />
+            )}
 
-            <LinearGradient
-              colors={['rgba(139, 92, 246, 0.22)', 'rgba(109, 40, 217, 0.10)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.statusBanner}>
-              <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
-              <Text style={styles.statusBannerText}>آخر تحديث للحساب تم قبل 5 دقائق بنجاح</Text>
-            </LinearGradient>
+            <Pressable onPress={handleRefresh} disabled={isRefreshing} style={styles.refreshButton}>
+              <View style={styles.refreshInner}>
+                {isRefreshing ? (
+                  <ActivityIndicator size="small" color={colors.text} />
+                ) : (
+                  <>
+                    <Feather name="refresh-cw" size={16} color={colors.text} />
+                    <Text style={styles.refreshText}>تحديث البيانات</Text>
+                  </>
+                )}
+              </View>
+            </Pressable>
           </View>
 
           <View style={styles.linksList}>
@@ -101,13 +120,27 @@ export default function AdminProfileScreen() {
             ))}
           </View>
 
-          <Pressable onPress={() => router.replace('/')} style={styles.logoutCard}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>بيانات الحساب</Text>
+            <Text style={styles.summaryText}>
+              الدور الحالي: {adminUser?.role === 'admin' ? 'أدمن' : 'غير معروف'}
+            </Text>
+            <Text style={styles.summaryText}>
+              الحالة: {adminUser?.status === 'active' ? 'نشط ويمكنه إدارة النظام' : 'غير نشط'}
+            </Text>
+          </View>
+
+          <Pressable onPress={handleLogout} style={styles.logoutCard} disabled={isLoggingOut}>
             <MaterialCommunityIcons name="logout" size={20} color={colors.error} />
             <View style={styles.logoutText}>
               <Text style={styles.logoutTitle}>تسجيل الخروج</Text>
-              <Text style={styles.logoutSubtitle}>العودة إلى الشاشة الرئيسية وإنهاء الجلسة</Text>
+              <Text style={styles.logoutSubtitle}>إنهاء الجلسة الحالية والعودة للشاشة الرئيسية</Text>
             </View>
-            <Feather name="chevron-left" size={18} color={colors.textMuted} />
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color={colors.textMuted} />
+            ) : (
+              <Feather name="chevron-left" size={18} color={colors.textMuted} />
+            )}
           </Pressable>
         </ScrollView>
       </View>
@@ -153,6 +186,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
+    gap: 12,
   },
   logoBox: {
     width: 92,
@@ -179,7 +213,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
     fontSize: 32,
-    marginTop: 18,
+    marginTop: 6,
+    textAlign: 'center',
   },
   subtitle: {
     color: colors.textSecondary,
@@ -187,25 +222,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 24,
     textAlign: 'center',
-    marginTop: 8,
     maxWidth: 290,
   },
-  statusBanner: {
+  loadingIndicator: {
     marginTop: 18,
-    minHeight: 54,
-    borderRadius: 20,
-    paddingHorizontal: 16,
+  },
+  refreshButton: {
+    alignSelf: 'stretch',
+  },
+  refreshInner: {
+    minHeight: 52,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 10,
-    width: '100%',
+    justifyContent: 'center',
+    gap: 8,
   },
-  statusBannerText: {
-    flex: 1,
+  refreshText: {
     color: colors.text,
     fontFamily: typography.fontFamily.semiBold,
-    fontSize: 13,
-    textAlign: 'right',
+    fontSize: 14,
   },
   linksList: {
     gap: 12,
@@ -246,6 +285,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(139, 92, 246, 0.10)',
+  },
+  summaryCard: {
+    borderRadius: 24,
+    padding: 16,
+    backgroundColor: 'rgba(16, 14, 22, 0.96)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    gap: 6,
+    alignItems: 'flex-end',
+  },
+  summaryTitle: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 16,
+    textAlign: 'right',
+  },
+  summaryText: {
+    color: colors.textSecondary,
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 13,
+    textAlign: 'right',
   },
   logoutCard: {
     minHeight: 80,

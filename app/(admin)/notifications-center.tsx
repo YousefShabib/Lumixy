@@ -36,7 +36,7 @@ const initialNotifications: NotificationItem[] = [
 
 export default function NotificationsCenterScreen() {
   const [items, setItems] = useState(initialNotifications);
-  const [notice, setNotice] = useState('آخر إشعار تم إرساله لفريق الإدارة قبل 12 دقيقة.');
+  const [notice, setNotice] = useState<string | undefined>(undefined);
 
   const toggleItem = (id: string) => {
     setItems((current) =>
@@ -44,11 +44,11 @@ export default function NotificationsCenterScreen() {
         item.id === id ? { ...item, enabled: !item.enabled } : item
       )
     );
-    setNotice('تم تحديث حالة التنبيه وسيتم تطبيقها على الإشعارات القادمة فقط.');
+    setNotice('تم تحديث إعدادات الإشعارات.');
   };
 
-  const sendTestNotification = () => {
-    setNotice('تم إرسال إشعار تجريبي إلى البريد ولوحة الإشعارات بنجاح.');
+  const saveNotificationSettings = () => {
+    setNotice('تم حفظ إعدادات الإشعارات بنجاح.');
   };
 
   return (
@@ -56,7 +56,7 @@ export default function NotificationsCenterScreen() {
       badge="الإشعارات"
       notice={notice}
       noticeTone="warning"
-      subtitle="تحكم بإشعارات الأدمن ونصوص التنبيه"
+      subtitle="تحكم بالإشعارات المهمة داخل الحساب"
       title="مركز التنبيهات">
       <View style={styles.card}>
         {items.map((item) => (
@@ -89,13 +89,13 @@ export default function NotificationsCenterScreen() {
           <Text style={styles.previewText}>نص الإشعار الحالي: تم اعتماد مزود جديد ويحتاج متابعة بسيطة.</Text>
         </LinearGradient>
 
-        <Pressable onPress={sendTestNotification}>
+        <Pressable onPress={saveNotificationSettings}>
           <LinearGradient
             colors={[colors.primaryLight, colors.primary]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.primaryButton}>
-            <Text style={styles.primaryButtonText}>إرسال إشعار تجريبي</Text>
+            <Text style={styles.primaryButtonText}>حفظ الإعدادات</Text>
           </LinearGradient>
         </Pressable>
       </View>

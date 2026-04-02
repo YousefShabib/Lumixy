@@ -1,8 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,24 +15,34 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import StatusBanner from '@/components/ui/status-banner';
+import { useAdminSession } from '@/contexts/admin-session-context';
 import { colors, typography } from '@/theme';
 
-const mockUser = {
-  name: 'Admin',
-  role: 'admin',
-};
-
 export default function LoginScreen() {
-  const [phone, setPhone] = useState('');
+  const { authError, clearAuthError, isAuthenticated, isAuthenticating, login } = useAdminSession();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [uiMessage, setUiMessage] = useState<string | null>(null);
 
-  const handleLogin = () => {
-    if (mockUser.role === 'admin') {
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/(admin)/providers-management');
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = async () => {
+    clearAuthError();
+    setUiMessage(null);
+
+    const result = await login(email.trim(), password);
+
+    if (result.success) {
       router.replace('/(admin)/providers-management');
       return;
     }
 
-    router.replace('/provider/tabs');
+    setUiMessage(result.message);
   };
 
   return (
@@ -52,24 +63,24 @@ export default function LoginScreen() {
               <Text style={styles.badgeText}>01</Text>
             </View>
             <Text style={styles.title}>تسجيل الدخول</Text>
-            <Text style={styles.subtitle}>
-              واجهة عربية حديثة لمزودي الخدمات، متناسقة مع هوية Lumixy وبنفس الثيم الداكن.
-            </Text>
+            <Text style={styles.subtitle}>أدخل بيانات حسابك للمتابعة إلى المنصة.</Text>
           </View>
 
           <View style={styles.card}>
-            <View style={styles.infoPill}>
-              <Text style={styles.infoPillText}>الدخول التجريبي الحالي: {mockUser.name}</Text>
-            </View>
+            {uiMessage || authError ? (
+              <StatusBanner message={uiMessage ?? authError ?? ''} tone="error" />
+            ) : null}
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.label}>رقم الجوال</Text>
+              <Text style={styles.label}>البريد الإلكتروني</Text>
               <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="05XXXXXXXX"
-                keyboardType="phone-pad"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="name@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
                 style={styles.input}
+                textAlign="right"
               />
             </View>
 
@@ -81,16 +92,24 @@ export default function LoginScreen() {
                 placeholder="أدخل كلمة المرور"
                 secureTextEntry
                 style={styles.input}
+                textAlign="right"
               />
             </View>
 
-            <Pressable style={styles.primaryButtonWrapper} onPress={handleLogin}>
+            <Pressable
+              style={styles.primaryButtonWrapper}
+              onPress={handleLogin}
+              disabled={isAuthenticating || email.trim().length === 0 || password.length === 0}>
               <LinearGradient
                 colors={[colors.primaryLight, colors.primary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>دخول</Text>
+                style={[styles.primaryButton, isAuthenticating && styles.disabledButton]}>
+                {isAuthenticating ? (
+                  <ActivityIndicator color={colors.text} />
+                ) : (
+                  <Text style={styles.primaryButtonText}>تسجيل الدخول</Text>
+                )}
               </LinearGradient>
             </Pressable>
 
@@ -182,18 +201,6 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     elevation: 8,
   },
-  infoPill: {
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  infoPillText: {
-    color: colors.accent,
-    fontFamily: typography.fontFamily.semiBold,
-    fontSize: 13,
-  },
   fieldGroup: {
     gap: 8,
   },
@@ -212,6 +219,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     paddingHorizontal: 18,
     fontSize: 15,
+    fontFamily: typography.fontFamily.regular,
   },
   primaryButtonWrapper: {
     marginTop: 8,
@@ -221,6 +229,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   primaryButtonText: {
     color: colors.text,
