@@ -27,7 +27,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/(admin)/providers-management');
+      router.replace('/admin/tabs');
     }
   }, [isAuthenticated]);
 
@@ -38,7 +38,7 @@ export default function LoginScreen() {
     const result = await login(email.trim(), password);
 
     if (result.success) {
-      router.replace('/(admin)/providers-management');
+      router.replace('/admin/tabs');
       return;
     }
 

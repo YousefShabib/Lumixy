@@ -58,7 +58,7 @@ export default function AddAdminScreen() {
   return (
     <AdminDetailShell
       badge="إدارة الحسابات"
-      subtitle="أنشئ حساباً إدارياً جديداً بشكل مباشر"
+      subtitle="أنشئ حساباً إدارياً جديداً من داخل اللوحة"
       title="إضافة أدمن جديد">
       <View style={styles.card}>
         {errorMessage ? <StatusBanner message={errorMessage} tone="error" /> : null}

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
@@ -35,23 +35,25 @@ export default function AdminTabsLayout() {
         },
       }}>
       <Tabs.Screen
-        name="index"
+        name="search"
         options={{
-          title: 'الرئيسية',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+          title: 'المزودون',
+          tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="search"
+        name="index"
         options={{
-          title: 'البحث',
-          tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
+          title: 'الخدمات',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="shape-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'بروفايل',
+          title: 'الملف الشخصي',
           tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
         }}
       />

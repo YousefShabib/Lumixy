@@ -57,7 +57,7 @@ export default function ProfileDetailsScreen() {
   return (
     <AdminDetailShell
       badge="الملف الشخصي"
-      subtitle="عدّل بيانات الحساب الأساسية وسيتم حفظها فوراً على الخادم"
+      subtitle="عدّل بيانات الحساب الأساسية واحفظها مباشرة"
       title="المعلومات الشخصية">
       <View style={styles.card}>
         {errorMessage ? <StatusBanner message={errorMessage} tone="error" /> : null}

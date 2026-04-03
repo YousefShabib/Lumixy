@@ -65,7 +65,7 @@ export default function AdminDetailShell({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}>
           <View style={styles.headerRow}>
-            <Pressable onPress={() => router.replace('/(admin)/profile')} style={styles.backButton}>
+            <Pressable onPress={() => router.replace('/admin/tabs/profile')} style={styles.backButton}>
               <Ionicons name="arrow-forward" size={20} color={colors.text} />
             </Pressable>
 
