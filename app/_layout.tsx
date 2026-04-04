@@ -1,92 +1,31 @@
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
-import {
-  Cairo_400Regular,
-  Cairo_600SemiBold,
-  Cairo_700Bold,
-} from '@expo-google-fonts/cairo';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { Cairo_400Regular, Cairo_700Bold } from '@expo-google-fonts/cairo';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-import { I18nManager, Platform, Text, TextInput } from 'react-native';
 import 'react-native-reanimated';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AdminSessionProvider } from '@/contexts/admin-session-context';
-import { colors } from '@/theme';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 void SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   initialRouteName: 'index',
-};
-
-type ComponentWithDefaults = {
-  defaultProps?: Record<string, unknown>;
-};
-
-function applyGlobalTypography() {
-  const TextComponent = Text as unknown as ComponentWithDefaults;
-  const TextInputComponent = TextInput as unknown as ComponentWithDefaults;
-
-  const textDefaults = TextComponent.defaultProps ?? {};
-  const textInputDefaults = TextInputComponent.defaultProps ?? {};
-
-  TextComponent.defaultProps = {
-    ...textDefaults,
-    allowFontScaling: false,
-    style: [
-      {
-        fontFamily: 'Cairo_400Regular',
-        writingDirection: 'rtl',
-      },
-      textDefaults.style,
-    ],
-  };
-
-  TextInputComponent.defaultProps = {
-    ...textInputDefaults,
-    allowFontScaling: false,
-    textAlign: 'right',
-    placeholderTextColor: colors.textMuted,
-    style: [
-      {
-        fontFamily: 'Cairo_400Regular',
-        writingDirection: 'rtl',
-      },
-      textInputDefaults.style,
-    ],
-  };
-}
-
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: colors.background,
-    card: colors.surface,
-    border: colors.border,
-    primary: colors.primaryLight,
-    text: colors.text,
-  },
+  anchor: '(tabs)',
 };
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
   const [fontsLoaded] = useFonts({
     Cairo_400Regular,
-    Cairo_600SemiBold,
     Cairo_700Bold,
   });
 
   useEffect(() => {
     if (fontsLoaded) {
-      if (Platform.OS !== 'web' && !I18nManager.isRTL) {
-        I18nManager.allowRTL(true);
-        I18nManager.forceRTL(true);
-      }
-
-      applyGlobalTypography();
       void SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
@@ -96,15 +35,11 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <AdminSessionProvider>
-        <ThemeProvider value={navigationTheme}>
-          <Stack
-            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}
-          />
-          <StatusBar style="light" />
-        </ThemeProvider>
-      </AdminSessionProvider>
-    </SafeAreaProvider>
+    <AuthProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
