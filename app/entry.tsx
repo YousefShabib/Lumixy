@@ -1,211 +1,133 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, typography } from '@/theme';
 
 export default function EntryScreen() {
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.container}>
       <StatusBar style="light" />
+      <View style={styles.glowTop} />
+      <View style={styles.glowBottom} />
 
-      <LinearGradient
-        colors={['#2A1241', '#180A26', '#0B0611']}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={styles.container}>
-        <View style={styles.content}>
-          <View style={styles.hero}>
-            <LinearGradient
-              colors={[colors.primaryLight, colors.primary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.heroIcon}>
-              <Ionicons name="sparkles" size={30} color={colors.text} />
-            </LinearGradient>
 
-            <Text style={styles.brand}>LUMIXY</Text>
-            <Text style={styles.subtitle}>
-              الرابط بينك وبين أفضل مزودي الخدمات في فلسطين
-            </Text>
+
+      <View style={styles.cards}>
+        <Pressable style={[styles.card, styles.cardDark]} onPress={() => router.replace('/(tabs)')}>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>⌕</Text>
           </View>
+          <Text style={styles.cardTitle}>ابحث عن خدمة</Text>
+          <Text style={styles.cardText}>ادخل إلى الصفحة الرئيسية واستكشف مزودي الخدمات بسهولة.</Text>
+        </Pressable>
 
-          <View style={styles.cards}>
-            <Pressable style={styles.cardPressable} onPress={() => router.replace('/(tabs)')}>
-              <View style={[styles.card, styles.darkCard]}>
-                <Ionicons
-                  name="arrow-back"
-                  size={26}
-                  color="rgba(255,255,255,0.55)"
-                  style={styles.arrow}
-                />
-
-                <View style={[styles.cardBadge, styles.darkBadge]}>
-                  <Ionicons name="search-outline" size={24} color={colors.primaryLight} />
-                </View>
-
-                <View style={styles.cardTextBlock}>
-                  <Text style={styles.cardTitle}>أبحث عن خدمة</Text>
-                  <Text style={styles.cardText}>
-                    تصفح كمستخدم للوصول إلى ما تحتاجه من خدمات منزلية، تقنية، أو مهنية
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-
-            <Pressable style={styles.cardPressable} onPress={() => router.push('/login')}>
-              <LinearGradient
-                colors={['#A855F7', '#7C3AED', '#5B21B6']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.card, styles.primaryCard]}>
-                <Ionicons
-                  name="arrow-back"
-                  size={26}
-                  color="rgba(255,255,255,0.64)"
-                  style={styles.arrow}
-                />
-
-                <View style={[styles.cardBadge, styles.lightBadge]}>
-                  <MaterialCommunityIcons name="briefcase-outline" size={24} color={colors.text} />
-                </View>
-
-                <View style={styles.cardTextBlock}>
-                  <Text style={styles.cardTitle}>أريد تقديم خدماتي</Text>
-                  <Text style={styles.cardText}>
-                    انضم إلى الشبكة وقدّم خدماتك لعملائك، نظّم خدماتك ووسّع نطاق أعمالك
-                  </Text>
-                </View>
-              </LinearGradient>
-            </Pressable>
+        <Pressable
+          style={[styles.card, styles.cardPrimary]}
+          onPress={() => router.replace('/auth/login')}>
+          <View style={[styles.badge, styles.badgeLight]}>
+            <Text style={styles.badgeText}>▣</Text>
           </View>
-        </View>
-      </LinearGradient>
-    </SafeAreaView>
+          <Text style={styles.cardTitle}>أريد تقديم خدماتي</Text>
+          <Text style={styles.cardText}>ابدأ من مسار مزود الخدمة وكمّل التجهيز بشكل مرتب.</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#1D0D2E',
-  },
   container: {
     flex: 1,
-    paddingHorizontal: 22,
-    paddingTop: 36,
-    paddingBottom: 28,
-    justifyContent: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 24,
+    paddingTop: 72,
+    paddingBottom: 32,
+    justifyContent: 'space-between',
   },
-  content: {
-    width: '100%',
-    maxWidth: 360,
-    alignSelf: 'center',
+  glowTop: {
+    position: 'absolute',
+    top: 48,
+    left: -40,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(109, 40, 217, 0.18)',
+  },
+  glowBottom: {
+    position: 'absolute',
+    right: -50,
+    bottom: 120,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(167, 139, 250, 0.14)',
   },
   hero: {
     alignItems: 'center',
-    marginBottom: 38,
-  },
-  heroIcon: {
-    width: 86,
-    height: 86,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primaryLight,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.34,
-    shadowRadius: 24,
-    elevation: 10,
+    gap: 14,
   },
   brand: {
     color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 31,
-    letterSpacing: 0.8,
-    marginTop: 20,
+    fontSize: 34,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   subtitle: {
-    color: 'rgba(255,255,255,0.62)',
-    fontFamily: typography.fontFamily.regular,
+    color: colors.textSecondary,
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 24,
-    marginTop: 12,
-    maxWidth: 255,
+    maxWidth: 300,
   },
   cards: {
     gap: 18,
   },
-  cardPressable: {
-    width: '100%',
-  },
   card: {
-    minHeight: 182,
-    borderRadius: 30,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    overflow: 'hidden',
+    borderRadius: 28,
+    paddingVertical: 28,
+    paddingHorizontal: 22,
+    borderWidth: 1,
   },
-  darkCard: {
-    backgroundColor: 'rgba(20, 19, 28, 0.94)',
-    borderWidth: 1.2,
-    borderColor: 'rgba(139, 92, 246, 0.48)',
-    shadowColor: colors.primaryLight,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 6,
+  cardDark: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
   },
-  primaryCard: {
-    shadowColor: colors.primaryLight,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.24,
-    shadowRadius: 26,
-    elevation: 10,
+  cardPrimary: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryLight,
   },
-  arrow: {
-    position: 'absolute',
-    left: 16,
-    top: 26,
-  },
-  cardBadge: {
-    width: 54,
-    height: 54,
+  badge: {
+    width: 52,
+    height: 52,
     borderRadius: 16,
+    backgroundColor: 'rgba(139, 92, 246, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-end',
+    marginBottom: 18,
   },
-  darkBadge: {
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.22)',
+  badgeLight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
   },
-  lightBadge: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-  },
-  cardTextBlock: {
-    marginTop: 40,
-    alignItems: 'flex-end',
+  badgeText: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 24,
   },
   cardTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
-    fontSize: 22,
+    fontSize: 28,
     textAlign: 'right',
+    marginBottom: 10,
   },
   cardText: {
-    color: 'rgba(255,255,255,0.76)',
+    color: 'rgba(255,255,255,0.82)',
     fontFamily: typography.fontFamily.regular,
-    fontSize: 13,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 22,
     textAlign: 'right',
-    marginTop: 10,
-    maxWidth: 235,
   },
 });
