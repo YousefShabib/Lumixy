@@ -1,4 +1,4 @@
-import { requestApi } from '@/lib/api-client';
+import { apiRequest, type ApiRequestConfig } from '@/services/api';
 
 export type AdminUser = {
   email: string;
@@ -83,89 +83,80 @@ export type AdminProfilePayload = {
   phone?: string;
 };
 
+type AdminApiResponse<T> = {
+  data: T;
+};
+
+async function adminRequest<T>(path: string, config: ApiRequestConfig = {}) {
+  const data = await apiRequest<T>(path, config);
+  return { data } as AdminApiResponse<T>;
+}
+
 export async function loginAdmin(email: string, password: string) {
-  return requestApi<AdminLoginResponse>({
+  return adminRequest<AdminLoginResponse>('/admin/auth/login', {
     method: 'POST',
-    path: '/admin/auth/login',
     body: { email, password },
   });
 }
 
-export async function fetchAdminMe(baseUrl: string, token: string) {
-  return requestApi<AdminUser>({
-    baseUrl,
+export async function fetchAdminMe() {
+  return adminRequest<AdminUser>('/admin/me', {
     method: 'GET',
-    path: '/admin/me',
-    token,
+    requiresAuth: true,
   });
 }
 
-export async function updateAdminProfile(
-  baseUrl: string,
-  token: string,
-  payload: AdminProfilePayload
-) {
-  return requestApi<{ message: string; user: AdminUser }>({
-    baseUrl,
+export async function updateAdminProfile(payload: AdminProfilePayload) {
+  return adminRequest<{ message: string; user: AdminUser }>('/admin/auth/profile', {
     method: 'PUT',
-    path: '/admin/auth/profile',
-    token,
+    requiresAuth: true,
     body: payload,
   });
 }
 
-export async function createAdminAccount(
-  baseUrl: string,
-  token: string,
-  payload: AdminCreatePayload
-) {
-  return requestApi<{ message: string; user: AdminUser }>({
-    baseUrl,
+export async function createAdminAccount(payload: AdminCreatePayload) {
+  return adminRequest<{ message: string; user: AdminUser }>('/admin/admins', {
     method: 'POST',
-    path: '/admin/admins',
-    token,
+    requiresAuth: true,
     body: payload,
   });
 }
 
-export async function logoutAdmin(baseUrl: string, token: string) {
-  return requestApi<{ message: string }>({
-    baseUrl,
+export async function logoutAdmin() {
+  return adminRequest<{ message: string }>('/admin/auth/logout', {
     method: 'POST',
-    path: '/admin/auth/logout',
-    token,
+    requiresAuth: true,
   });
 }
 
-export async function fetchAdminProviders(baseUrl: string, token: string) {
-  return requestApi<PaginatedResponse<AdminProviderRecord>>({
-    baseUrl,
+export async function fetchAdminProviders() {
+  return adminRequest<PaginatedResponse<AdminProviderRecord>>('/admin/providers', {
     method: 'GET',
-    path: '/admin/providers',
-    token,
+    requiresAuth: true,
   });
 }
 
-export async function approveProvider(baseUrl: string, token: string, providerId: string) {
-  return requestApi<{ message: string }>({
-    baseUrl,
+export async function fetchAdminPendingProviders() {
+  return adminRequest<AdminProviderRecord[]>('/admin/providers/pending', {
+    method: 'GET',
+    requiresAuth: true,
+  });
+}
+
+export async function approveProvider(providerId: string) {
+  return adminRequest<{ message: string }>(`/admin/providers/${providerId}/approve`, {
     method: 'POST',
-    path: `/admin/providers/${providerId}/approve`,
-    token,
+    requiresAuth: true,
   });
 }
 
 export async function rejectProvider(
-  baseUrl: string,
-  token: string,
   providerId: string,
   rejectionReason: string
 ) {
-  return requestApi<{ message: string }>({
-    baseUrl,
+  return adminRequest<{ message: string }>(`/admin/providers/${providerId}/reject`, {
     method: 'POST',
-    path: `/admin/providers/${providerId}/reject`,
-    token,
+    requiresAuth: true,
     body: {
       rejection_reason: rejectionReason,
     },
@@ -173,72 +164,52 @@ export async function rejectProvider(
 }
 
 export async function suspendProvider(
-  baseUrl: string,
-  token: string,
   providerId: string,
   reason: string
 ) {
-  return requestApi<{ message: string }>({
-    baseUrl,
+  return adminRequest<{ message: string }>(`/admin/providers/${providerId}/suspend`, {
     method: 'POST',
-    path: `/admin/providers/${providerId}/suspend`,
-    token,
+    requiresAuth: true,
     body: { reason },
   });
 }
 
-export async function deleteProvider(baseUrl: string, token: string, providerId: string) {
-  return requestApi<{ message: string }>({
-    baseUrl,
+export async function deleteProvider(providerId: string) {
+  return adminRequest<{ message: string }>(`/admin/providers/${providerId}`, {
     method: 'DELETE',
-    path: `/admin/providers/${providerId}`,
-    token,
+    requiresAuth: true,
   });
 }
 
-export async function fetchAdminCategories(baseUrl: string, token: string) {
-  return requestApi<AdminCategoryRecord[]>({
-    baseUrl,
+export async function fetchAdminCategories() {
+  return adminRequest<AdminCategoryRecord[]>('/admin/categories', {
     method: 'GET',
-    path: '/admin/categories',
-    token,
+    requiresAuth: true,
   });
 }
 
-export async function createCategory(
-  baseUrl: string,
-  token: string,
-  payload: CategoryPayload
-) {
-  return requestApi<{ category: AdminCategoryRecord; message: string }>({
-    baseUrl,
+export async function createCategory(payload: CategoryPayload) {
+  return adminRequest<{ category: AdminCategoryRecord; message: string }>('/admin/categories', {
     method: 'POST',
-    path: '/admin/categories',
-    token,
+    requiresAuth: true,
     body: payload,
   });
 }
 
-export async function updateCategory(
-  baseUrl: string,
-  token: string,
-  categoryId: string,
-  payload: CategoryPayload
-) {
-  return requestApi<{ category: AdminCategoryRecord; message: string }>({
-    baseUrl,
-    method: 'PUT',
-    path: `/admin/categories/${categoryId}`,
-    token,
-    body: payload,
-  });
+export async function updateCategory(categoryId: string, payload: CategoryPayload) {
+  return adminRequest<{ category: AdminCategoryRecord; message: string }>(
+    `/admin/categories/${categoryId}`,
+    {
+      method: 'PUT',
+      requiresAuth: true,
+      body: payload,
+    }
+  );
 }
 
-export async function deleteCategory(baseUrl: string, token: string, categoryId: string) {
-  return requestApi<{ message: string }>({
-    baseUrl,
+export async function deleteCategory(categoryId: string) {
+  return adminRequest<{ message: string }>(`/admin/categories/${categoryId}`, {
     method: 'DELETE',
-    path: `/admin/categories/${categoryId}`,
-    token,
+    requiresAuth: true,
   });
 }

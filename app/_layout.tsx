@@ -8,6 +8,7 @@ import React, { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { AuthProvider } from '@/contexts/AuthContext';
+import { AdminSessionProvider } from '@/contexts/admin-session-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 void SplashScreen.preventAutoHideAsync();
@@ -36,10 +37,12 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }} />
-        <StatusBar style="auto" />
-      </ThemeProvider>
+      <AdminSessionProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ headerShown: false }} />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </AdminSessionProvider>
     </AuthProvider>
   );
 }

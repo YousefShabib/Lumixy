@@ -20,17 +20,18 @@ import { useAdminSession } from '@/contexts/admin-session-context';
 import {
   approveProvider,
   deleteProvider,
+  fetchAdminPendingProviders,
   fetchAdminProviders,
   rejectProvider,
   suspendProvider,
   type AdminProviderApplication,
   type AdminProviderRecord,
-} from '@/lib/admin-api';
-import { ApiRequestError, getApiErrorMessage } from '@/lib/api-client';
+} from '@/services/admin-api';
+import { ApiError, getReadableError } from '@/services/api';
 import { colors, typography } from '@/theme';
 
 type ProviderStatus = 'approved' | 'pending' | 'rejected';
-type ProviderTone = ProviderStatus | 'suspended';
+type ProviderTone = ProviderStatus | 'none' | 'suspended';
 type StatusFilter = 'all' | ProviderStatus;
 
 type ProviderItem = {
@@ -38,8 +39,11 @@ type ProviderItem = {
   avatarIcon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   badgeLabel: string;
   city: string;
-  filterStatus: ProviderStatus;
+  filterStatus: ProviderStatus | null;
+  hasApplication: boolean;
   id: string;
+  isActiveProvider: boolean;
+  isAwaitingApproval: boolean;
   name: string;
   note: string | null;
   specialty: string;
@@ -70,6 +74,11 @@ const statusMeta: Record<
     color: '#F59E0B',
     bg: 'rgba(117, 66, 18, 0.24)',
     border: 'rgba(245, 158, 11, 0.18)',
+  },
+  none: {
+    color: '#A1A1AA',
+    bg: 'rgba(82, 82, 91, 0.22)',
+    border: 'rgba(161, 161, 170, 0.14)',
   },
   rejected: {
     color: '#F87171',
@@ -127,35 +136,54 @@ function resolveProviderVisual(name: string, specialty: string) {
 
 function mapProvider(record: AdminProviderRecord): ProviderItem {
   const latestApplication = getLatestApplication(record.applications);
-  const rawStatus = latestApplication?.application_status ?? 'pending';
+  const rawStatus = latestApplication?.application_status ?? null;
+  const isActiveProvider = !latestApplication && record.user?.status === 'active';
+  const isAwaitingApproval =
+    rawStatus === 'pending' || (!latestApplication && record.user?.status === 'inactive');
   const isSuspended = rawStatus === 'approved' && record.user?.status === 'inactive';
   const specialty =
     record.category?.name ?? record.custom_services?.[0] ?? 'خدمات غير مصنفة حتى الآن';
   const name = record.provider_name ?? record.user?.full_name ?? 'مزود بدون اسم';
   const visual = resolveProviderVisual(name, specialty);
+  let tone: ProviderTone = 'none';
+
+  if (isAwaitingApproval) {
+    tone = 'pending';
+  } else if (isActiveProvider) {
+    tone = 'approved';
+  } else if (latestApplication) {
+    tone = isSuspended ? 'suspended' : latestApplication.application_status;
+  }
 
   return {
     id: record.id,
     name,
     city: record.city?.trim() || 'المدينة غير محددة',
     specialty,
-    filterStatus: rawStatus,
-    tone: isSuspended ? 'suspended' : rawStatus,
+    hasApplication: Boolean(latestApplication),
+    filterStatus: isAwaitingApproval ? 'pending' : isActiveProvider ? 'approved' : rawStatus,
+    isActiveProvider,
+    isAwaitingApproval,
+    tone,
     badgeLabel:
-      rawStatus === 'approved'
+      isAwaitingApproval
+        ? 'قيد الانتظار'
+        : isActiveProvider
+        ? 'نشط'
+        : rawStatus === 'approved'
         ? isSuspended
           ? 'موقوف'
-          : 'موافَق عليه'
+          : 'نشط'
         : rawStatus === 'rejected'
           ? 'مرفوض'
-          : 'قيد الانتظار',
+          : 'بدون طلب',
     note: latestApplication?.notes?.trim() || null,
     ...visual,
   };
 }
 
 export default function ProvidersScreen() {
-  const { apiBaseUrl, logout, token } = useAdminSession();
+  const { logout } = useAdminSession();
   const { categoryId, categoryName } = useLocalSearchParams<{
     categoryId?: string;
     categoryName?: string;
@@ -177,12 +205,12 @@ export default function ProvidersScreen() {
   const handleUnauthorized = useCallback(
     async (error: unknown) => {
       if (
-        error instanceof ApiRequestError &&
+        error instanceof ApiError &&
         (error.status === 401 || error.status === 403)
       ) {
         console.error('انتهت صلاحية الوصول إلى صفحة المزودين:', error);
         await logout();
-        router.replace('/login');
+        router.replace('/auth/login');
         return true;
       }
 
@@ -193,12 +221,6 @@ export default function ProvidersScreen() {
 
   const loadProviders = useCallback(
     async ({ quiet = false }: { quiet?: boolean } = {}) => {
-      if (!apiBaseUrl || !token) {
-        setErrorMessage('لا توجد جلسة إدارة صالحة لتحميل المزودين.');
-        setIsLoading(false);
-        return;
-      }
-
       if (!quiet) {
         setIsLoading(true);
       }
@@ -206,11 +228,34 @@ export default function ProvidersScreen() {
       setErrorMessage(null);
 
       try {
-        const response = await fetchAdminProviders(apiBaseUrl, token);
+        const [response, pendingResponse] = await Promise.all([
+          fetchAdminProviders(),
+          fetchAdminPendingProviders(),
+        ]);
+        const pendingProvidersById = new Map(
+          pendingResponse.data.map((provider) => [provider.id, provider])
+        );
+        const mergedProviders = response.data.data.map((provider) => {
+          const pendingProvider = pendingProvidersById.get(provider.id);
+
+          if (!pendingProvider) {
+            return provider;
+          }
+
+          const hasApplications =
+            Array.isArray(provider.applications) && provider.applications.length > 0;
+
+          return hasApplications
+            ? provider
+            : {
+                ...provider,
+                applications: pendingProvider.applications,
+              };
+        });
         const nextProviders =
           isCategoryView && typeof categoryId === 'string'
-            ? response.data.data.filter((provider) => provider.category?.id === categoryId)
-            : response.data.data;
+            ? mergedProviders.filter((provider) => provider.category?.id === categoryId)
+            : mergedProviders;
 
         setProviders(nextProviders);
       } catch (error) {
@@ -220,14 +265,14 @@ export default function ProvidersScreen() {
           return;
         }
 
-        setErrorMessage(getApiErrorMessage(error));
+        setErrorMessage(getReadableError(error));
       } finally {
         if (!quiet) {
           setIsLoading(false);
         }
       }
     },
-    [apiBaseUrl, categoryId, handleUnauthorized, isCategoryView, token]
+    [categoryId, handleUnauthorized, isCategoryView]
   );
 
   useEffect(() => {
@@ -235,6 +280,42 @@ export default function ProvidersScreen() {
   }, [loadProviders]);
 
   const providerItems = useMemo(() => providers.map(mapProvider), [providers]);
+
+  const providerSummaryCards = useMemo(() => {
+    const totalCount = providerItems.length;
+    const activeCount = providerItems.filter((provider) => provider.tone === 'approved').length;
+    const inactiveCount = totalCount - activeCount;
+
+    return [
+      {
+        key: 'total',
+        label: isCategoryView ? 'مزودو القطاع' : 'إجمالي المزودين',
+        value: totalCount,
+        icon: 'people-outline' as const,
+        iconColor: '#A78BFA',
+        iconBg: 'rgba(167, 139, 250, 0.16)',
+        borderColor: 'rgba(167, 139, 250, 0.18)',
+      },
+      {
+        key: 'active',
+        label: 'نشط',
+        value: activeCount,
+        icon: 'checkmark-circle-outline' as const,
+        iconColor: '#58D29B',
+        iconBg: 'rgba(88, 210, 155, 0.14)',
+        borderColor: 'rgba(88, 210, 155, 0.16)',
+      },
+      {
+        key: 'inactive',
+        label: 'غير نشط',
+        value: inactiveCount,
+        icon: 'pause-circle-outline' as const,
+        iconColor: '#F59E0B',
+        iconBg: 'rgba(245, 158, 11, 0.14)',
+        borderColor: 'rgba(245, 158, 11, 0.16)',
+      },
+    ];
+  }, [isCategoryView, providerItems]);
 
   const filteredProviders = useMemo(() => {
     return providerItems.filter((provider) => {
@@ -273,7 +354,7 @@ export default function ProvidersScreen() {
           return;
         }
 
-        setErrorMessage(getApiErrorMessage(error));
+        setErrorMessage(getReadableError(error));
       } finally {
         setBusyProviderId(null);
       }
@@ -282,55 +363,33 @@ export default function ProvidersScreen() {
   );
 
   const handleApprove = async (provider: ProviderItem) => {
-    if (!apiBaseUrl || !token) {
-      setErrorMessage('لا يمكن تنفيذ الموافقة بدون جلسة إدارة صالحة.');
-      return;
-    }
-
     await runProviderAction({
       providerId: provider.id,
       logLabel: 'الموافقة على المزود',
-      request: () => approveProvider(apiBaseUrl, token, provider.id),
+      request: () => approveProvider(provider.id),
       successMessage: `تمت الموافقة على ${provider.name} بنجاح.`,
     });
   };
 
   const handleReject = async (provider: ProviderItem) => {
-    if (!apiBaseUrl || !token) {
-      setErrorMessage('لا يمكن تنفيذ الرفض بدون جلسة إدارة صالحة.');
-      return;
-    }
-
     await runProviderAction({
       providerId: provider.id,
       logLabel: 'رفض المزود',
-      request: () =>
-        rejectProvider(apiBaseUrl, token, provider.id, 'تم رفض الطلب من لوحة الإدارة.'),
+      request: () => rejectProvider(provider.id, 'تم رفض الطلب من لوحة الإدارة.'),
       successMessage: `تم رفض ${provider.name} بنجاح.`,
     });
   };
 
   const handleSuspend = async (provider: ProviderItem) => {
-    if (!apiBaseUrl || !token) {
-      setErrorMessage('لا يمكن تنفيذ التعليق بدون جلسة إدارة صالحة.');
-      return;
-    }
-
     await runProviderAction({
       providerId: provider.id,
       logLabel: 'تعليق حساب المزود',
-      request: () =>
-        suspendProvider(apiBaseUrl, token, provider.id, 'تم تعليق الحساب من لوحة الإدارة.'),
+      request: () => suspendProvider(provider.id, 'تم تعليق الحساب من لوحة الإدارة.'),
       successMessage: `تم تعليق حساب ${provider.name} بنجاح.`,
     });
   };
 
   const handleDelete = (provider: ProviderItem) => {
-    if (!apiBaseUrl || !token) {
-      setErrorMessage('لا يمكن تنفيذ الحذف بدون جلسة إدارة صالحة.');
-      return;
-    }
-
     Alert.alert(
       'حذف المزود',
       `هل تريد حذف ${provider.name} نهائياً من النظام؟`,
@@ -343,7 +402,7 @@ export default function ProvidersScreen() {
             void runProviderAction({
               providerId: provider.id,
               logLabel: 'حذف المزود',
-              request: () => deleteProvider(apiBaseUrl, token, provider.id),
+              request: () => deleteProvider(provider.id),
               successMessage: `تم حذف ${provider.name} نهائياً من النظام.`,
             });
           },
@@ -421,6 +480,20 @@ export default function ProvidersScreen() {
               }}
             />
           ) : null}
+
+          <View style={styles.summaryRow}>
+            {providerSummaryCards.map((card) => (
+              <View
+                key={card.key}
+                style={[styles.summaryCard, { borderColor: card.borderColor }]}>
+                <View style={[styles.summaryIconWrap, { backgroundColor: card.iconBg }]}>
+                  <Ionicons name={card.icon} size={18} color={card.iconColor} />
+                </View>
+                <Text style={styles.summaryValue}>{card.value}</Text>
+                <Text style={styles.summaryLabel}>{card.label}</Text>
+              </View>
+            ))}
+          </View>
 
           <View style={styles.searchBar}>
             <TextInput
@@ -518,6 +591,8 @@ export default function ProvidersScreen() {
                                   ? '#8A8A8A'
                                   : provider.tone === 'rejected'
                                     ? '#451A1A'
+                                    : provider.tone === 'none'
+                                      ? '#D4D4D8'
                                     : '#FFFFFF'
                               }
                             />
@@ -540,70 +615,130 @@ export default function ProvidersScreen() {
 
                       <View style={styles.providerFooter}>
                         <View style={styles.actionsRow}>
-                          {provider.filterStatus === 'rejected' ? (
-                            <Pressable
-                              style={[styles.iconAction, styles.deleteButton]}
-                              onPress={() => handleDelete(provider)}
-                              disabled={isBusy}>
-                              {isBusy ? (
-                                <ActivityIndicator size="small" color={colors.error} />
-                              ) : (
-                                <Feather name="trash-2" size={18} color={colors.error} />
-                              )}
-                            </Pressable>
-                          ) : (
-                            <Pressable
-                              style={[styles.iconAction, styles.rejectButton]}
-                              onPress={() => {
-                                void handleReject(provider);
-                              }}
-                              disabled={isBusy}>
-                              {isBusy ? (
-                                <ActivityIndicator size="small" color={colors.error} />
-                              ) : (
-                                <Feather name="trash-2" size={18} color={colors.error} />
-                              )}
-                            </Pressable>
-                          )}
-
-                          {provider.filterStatus === 'approved' && provider.tone !== 'suspended' ? (
-                            <Pressable
-                              style={[styles.iconAction, styles.editButton]}
-                              onPress={() => {
-                                void handleSuspend(provider);
-                              }}
-                              disabled={isBusy}>
-                              {isBusy ? (
-                                <ActivityIndicator size="small" color={colors.text} />
-                              ) : (
-                                <Feather name="slash" size={18} color="rgba(255,255,255,0.72)" />
-                              )}
-                            </Pressable>
-                          ) : (
-                            <Pressable
-                              onPress={() => {
-                                void handleApprove(provider);
-                              }}
-                              disabled={isBusy}>
-                              <LinearGradient
-                                colors={['#78DBA9', '#59C98F']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={[styles.approveButton, isBusy && styles.approveButtonDisabled]}>
+                          {!provider.hasApplication &&
+                          !provider.isAwaitingApproval &&
+                          !provider.isActiveProvider ? (
+                            <View style={styles.noApplicationBadge}>
+                              <Text style={styles.noApplicationText}>لا يوجد طلب اعتماد</Text>
+                            </View>
+                          ) : !provider.hasApplication && provider.isAwaitingApproval ? (
+                            <>
+                              <Pressable
+                                style={[styles.iconAction, styles.rejectButton]}
+                                onPress={() => {
+                                  void handleReject(provider);
+                                }}
+                                disabled={isBusy}>
                                 {isBusy ? (
-                                  <ActivityIndicator size="small" color={colors.text} />
+                                  <ActivityIndicator size="small" color={colors.error} />
                                 ) : (
-                                  <>
-                                    <Text style={styles.approveButtonText}>موافقة</Text>
-                                    <Ionicons
-                                      name="checkmark-circle-outline"
-                                      size={16}
-                                      color={colors.text}
-                                    />
-                                  </>
+                                  <Feather name="trash-2" size={18} color={colors.error} />
                                 )}
-                              </LinearGradient>
-                            </Pressable>
+                              </Pressable>
+
+                              <Pressable
+                                onPress={() => {
+                                  void handleApprove(provider);
+                                }}
+                                disabled={isBusy}>
+                                <LinearGradient
+                                  colors={['#78DBA9', '#59C98F']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={[
+                                    styles.approveButton,
+                                    isBusy && styles.approveButtonDisabled,
+                                  ]}>
+                                  {isBusy ? (
+                                    <ActivityIndicator size="small" color={colors.text} />
+                                  ) : (
+                                    <>
+                                      <Text style={styles.approveButtonText}>موافقة</Text>
+                                      <Ionicons
+                                        name="checkmark-circle-outline"
+                                        size={16}
+                                        color={colors.text}
+                                      />
+                                    </>
+                                  )}
+                                </LinearGradient>
+                              </Pressable>
+                            </>
+                          ) : (
+                            <>
+                              {provider.filterStatus === 'rejected' ? (
+                                <Pressable
+                                  style={[styles.iconAction, styles.deleteButton]}
+                                  onPress={() => handleDelete(provider)}
+                                  disabled={isBusy}>
+                                  {isBusy ? (
+                                    <ActivityIndicator size="small" color={colors.error} />
+                                  ) : (
+                                    <Feather name="trash-2" size={18} color={colors.error} />
+                                  )}
+                                </Pressable>
+                              ) : (
+                                <Pressable
+                                  style={[styles.iconAction, styles.rejectButton]}
+                                  onPress={() => {
+                                    void handleReject(provider);
+                                  }}
+                                  disabled={isBusy}>
+                                  {isBusy ? (
+                                    <ActivityIndicator size="small" color={colors.error} />
+                                  ) : (
+                                    <Feather name="trash-2" size={18} color={colors.error} />
+                                  )}
+                                </Pressable>
+                              )}
+
+                              {provider.filterStatus === 'approved' && provider.tone !== 'suspended' ? (
+                                <Pressable
+                                  style={[styles.iconAction, styles.editButton]}
+                                  onPress={() => {
+                                    void handleSuspend(provider);
+                                  }}
+                                  disabled={isBusy}>
+                                  {isBusy ? (
+                                    <ActivityIndicator size="small" color={colors.text} />
+                                  ) : (
+                                    <Feather
+                                      name="slash"
+                                      size={18}
+                                      color="rgba(255,255,255,0.72)"
+                                    />
+                                  )}
+                                </Pressable>
+                              ) : (
+                                <Pressable
+                                  onPress={() => {
+                                    void handleApprove(provider);
+                                  }}
+                                  disabled={isBusy}>
+                                  <LinearGradient
+                                    colors={['#78DBA9', '#59C98F']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={[
+                                      styles.approveButton,
+                                      isBusy && styles.approveButtonDisabled,
+                                    ]}>
+                                    {isBusy ? (
+                                      <ActivityIndicator size="small" color={colors.text} />
+                                    ) : (
+                                      <>
+                                        <Text style={styles.approveButtonText}>موافقة</Text>
+                                        <Ionicons
+                                          name="checkmark-circle-outline"
+                                          size={16}
+                                          color={colors.text}
+                                        />
+                                      </>
+                                    )}
+                                  </LinearGradient>
+                                </Pressable>
+                              )}
+                            </>
                           )}
                         </View>
 
@@ -715,7 +850,7 @@ const styles = StyleSheet.create({
   },
   headerBadgeText: {
     color: colors.accent,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.bold,
     fontSize: 12,
   },
   brandWrapper: {
@@ -730,14 +865,15 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'flex-end',
-    paddingTop: 8,
+    paddingTop: 14,
     gap: 6,
   },
   title: {
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
     fontSize: 34,
-    lineHeight: 40,
+    lineHeight: 48,
+    paddingTop: 4,
     textAlign: 'right',
   },
   subtitle: {
@@ -784,7 +920,7 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     color: 'rgba(255,255,255,0.78)',
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.bold,
     fontSize: 13,
   },
   activeFilter: {
@@ -803,6 +939,45 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
     fontSize: 13,
+  },
+  summaryRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'stretch',
+    gap: 10,
+  },
+  summaryCard: {
+    flex: 1,
+    minHeight: 96,
+    borderRadius: 22,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+  },
+  summaryIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  summaryValue: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 24,
+    lineHeight: 34,
+    paddingTop: 2,
+    textAlign: 'center',
+  },
+  summaryLabel: {
+    color: colors.textSecondary,
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
   },
   cardsList: {
     gap: 14,
@@ -851,7 +1026,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusBadgeText: {
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.bold,
     fontSize: 12,
   },
   providerIdentity: {
@@ -927,6 +1102,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  noApplicationBadge: {
+    minHeight: 38,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(161, 161, 170, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(161, 161, 170, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noApplicationText: {
+    color: colors.textMuted,
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 12,
   },
   iconAction: {
     width: 42,

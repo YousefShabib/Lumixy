@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAdminSession } from '@/contexts/admin-session-context';
@@ -27,16 +27,8 @@ const profileLinks = [
 ];
 
 export default function AdminProfileScreen() {
-  const { adminUser, logout, refreshProfile } = useAdminSession();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { adminUser, logout } = useAdminSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    const result = await refreshProfile();
-    Alert.alert(result.success ? 'تم التحديث' : 'تعذر التحديث', result.message);
-    setIsRefreshing(false);
-  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -85,19 +77,6 @@ export default function AdminProfileScreen() {
                 style={styles.loadingIndicator}
               />
             )}
-
-            <Pressable onPress={handleRefresh} disabled={isRefreshing} style={styles.refreshButton}>
-              <View style={styles.refreshInner}>
-                {isRefreshing ? (
-                  <ActivityIndicator size="small" color={colors.text} />
-                ) : (
-                  <>
-                    <Feather name="refresh-cw" size={16} color={colors.text} />
-                    <Text style={styles.refreshText}>تحديث البيانات</Text>
-                  </>
-                )}
-              </View>
-            </Pressable>
           </View>
 
           <View style={styles.linksList}>
@@ -118,16 +97,6 @@ export default function AdminProfileScreen() {
                 </View>
               </Pressable>
             ))}
-          </View>
-
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>بيانات الحساب</Text>
-            <Text style={styles.summaryText}>
-              الدور الحالي: {adminUser?.role === 'admin' ? 'أدمن' : 'غير معروف'}
-            </Text>
-            <Text style={styles.summaryText}>
-              الحالة: {adminUser?.status === 'active' ? 'نشط ويمكنه إدارة النظام' : 'غير نشط'}
-            </Text>
           </View>
 
           <Pressable onPress={handleLogout} style={styles.logoutCard} disabled={isLoggingOut}>
@@ -227,25 +196,6 @@ const styles = StyleSheet.create({
   loadingIndicator: {
     marginTop: 18,
   },
-  refreshButton: {
-    alignSelf: 'stretch',
-  },
-  refreshInner: {
-    minHeight: 52,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  refreshText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.semiBold,
-    fontSize: 14,
-  },
   linksList: {
     gap: 12,
   },
@@ -285,27 +235,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(139, 92, 246, 0.10)',
-  },
-  summaryCard: {
-    borderRadius: 24,
-    padding: 16,
-    backgroundColor: 'rgba(16, 14, 22, 0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    gap: 6,
-    alignItems: 'flex-end',
-  },
-  summaryTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-    textAlign: 'right',
-  },
-  summaryText: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 13,
-    textAlign: 'right',
   },
   logoutCard: {
     minHeight: 80,

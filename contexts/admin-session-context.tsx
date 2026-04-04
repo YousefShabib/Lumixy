@@ -7,6 +7,7 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { useAuthContext } from '@/contexts/AuthContext';
 import {
   createAdminAccount,
   fetchAdminMe,
@@ -16,8 +17,9 @@ import {
   type AdminProfilePayload,
   type AdminUser,
   updateAdminProfile,
-} from '@/lib/admin-api';
-import { getApiErrorMessage } from '@/lib/api-client';
+} from '@/services/admin-api';
+import { getReadableError } from '@/services/api';
+import { getStoredToken } from '@/services/storage';
 
 type ActionResult = {
   message: string;
@@ -30,7 +32,6 @@ type CreateAdminResult = ActionResult & {
 
 type AdminSessionContextValue = {
   adminUser: AdminUser | null;
-  apiBaseUrl: string | null;
   authError: string | null;
   clearAuthError: () => void;
   createAdmin: (payload: AdminCreatePayload) => Promise<CreateAdminResult>;
@@ -39,47 +40,47 @@ type AdminSessionContextValue = {
   login: (email: string, password: string) => Promise<ActionResult>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<ActionResult>;
-  token: string | null;
   updateProfile: (payload: AdminProfilePayload) => Promise<ActionResult>;
 };
 
 const AdminSessionContext = createContext<AdminSessionContextValue | null>(null);
 
 export function AdminSessionProvider({ children }: { children: ReactNode }) {
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
-  const [apiBaseUrl, setApiBaseUrl] = useState<string | null>(null);
+  const { clearSession, isHydrating, role, setSession, user } = useAuthContext();
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [isSubmittingLogin, setIsSubmittingLogin] = useState(false);
 
-  const clearSession = useCallback(() => {
-    setAdminUser(null);
-    setApiBaseUrl(null);
-    setAuthError(null);
-    setToken(null);
-  }, []);
+  const adminUser = useMemo<AdminUser | null>(() => {
+    if (role !== 'admin' || !user) {
+      return null;
+    }
+
+    return user as AdminUser;
+  }, [role, user]);
 
   const clearAuthError = useCallback(() => {
     setAuthError(null);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    setIsAuthenticating(true);
+    setIsSubmittingLogin(true);
     setAuthError(null);
 
     try {
-      const { data, baseUrl } = await loginAdmin(email, password);
+      const { data } = await loginAdmin(email, password);
 
-      setAdminUser(data.user);
-      setApiBaseUrl(baseUrl);
-      setToken(data.token);
+      await setSession({
+        token: data.token,
+        role: data.user.role,
+        user: data.user,
+      });
 
       return {
         success: true,
         message: data.message,
       };
     } catch (error) {
-      const message = getApiErrorMessage(error);
+      const message = getReadableError(error);
       console.error('فشل تسجيل الدخول:', error);
       setAuthError(message);
 
@@ -88,27 +89,39 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
         message,
       };
     } finally {
-      setIsAuthenticating(false);
+      setIsSubmittingLogin(false);
     }
-  }, []);
+  }, [setSession]);
 
   const refreshProfile = useCallback(async () => {
-    if (!token || !apiBaseUrl) {
+    if (role !== 'admin') {
       const message = 'لا توجد جلسة إدارة نشطة حالياً.';
       setAuthError(message);
       return { success: false, message };
     }
 
     try {
-      const { data } = await fetchAdminMe(apiBaseUrl, token);
-      setAdminUser(data);
+      const { data } = await fetchAdminMe();
+      const currentToken = await getStoredToken();
+
+      if (!currentToken) {
+        const message = 'الجلسة الحالية غير صالحة. سجّل الدخول من جديد.';
+        setAuthError(message);
+        return { success: false, message };
+      }
+
+      await setSession({
+        token: currentToken,
+        role: 'admin',
+        user: data,
+      });
 
       return {
         success: true,
         message: 'تم تحديث بيانات الحساب من الخادم.',
       };
     } catch (error) {
-      const message = getApiErrorMessage(error);
+      const message = getReadableError(error);
       console.error('فشل تحديث بيانات الحساب:', error);
       setAuthError(message);
 
@@ -117,26 +130,38 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
         message,
       };
     }
-  }, [apiBaseUrl, token]);
+  }, [role, setSession]);
 
   const updateProfile = useCallback(
     async (payload: AdminProfilePayload) => {
-      if (!token || !apiBaseUrl) {
+      if (role !== 'admin') {
         const message = 'الجلسة الحالية غير صالحة. سجّل الدخول من جديد.';
         setAuthError(message);
         return { success: false, message };
       }
 
       try {
-        const { data } = await updateAdminProfile(apiBaseUrl, token, payload);
-        setAdminUser(data.user);
+        const { data } = await updateAdminProfile(payload);
+        const currentToken = await getStoredToken();
+
+        if (!currentToken) {
+          const message = 'الجلسة الحالية غير صالحة. سجّل الدخول من جديد.';
+          setAuthError(message);
+          return { success: false, message };
+        }
+
+        await setSession({
+          token: currentToken,
+          role: 'admin',
+          user: data.user,
+        });
 
         return {
           success: true,
           message: data.message,
         };
       } catch (error) {
-        const message = getApiErrorMessage(error);
+        const message = getReadableError(error);
         console.error('فشل حفظ البيانات الشخصية:', error);
         setAuthError(message);
 
@@ -146,19 +171,19 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
         };
       }
     },
-    [apiBaseUrl, token]
+    [role, setSession]
   );
 
   const createAdmin = useCallback(
     async (payload: AdminCreatePayload) => {
-      if (!token || !apiBaseUrl) {
+      if (role !== 'admin') {
         const message = 'الجلسة الحالية غير صالحة. سجّل الدخول من جديد.';
         setAuthError(message);
         return { success: false, message };
       }
 
       try {
-        const { data } = await createAdminAccount(apiBaseUrl, token, payload);
+        const { data } = await createAdminAccount(payload);
 
         return {
           success: true,
@@ -166,7 +191,7 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
           user: data.user,
         };
       } catch (error) {
-        const message = getApiErrorMessage(error);
+        const message = getReadableError(error);
         console.error('فشل إنشاء الحساب الإداري:', error);
         setAuthError(message);
 
@@ -176,47 +201,46 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
         };
       }
     },
-    [apiBaseUrl, token]
+    [role]
   );
 
   const logout = useCallback(async () => {
-    if (token && apiBaseUrl) {
+    if (role === 'admin') {
       try {
-        await logoutAdmin(apiBaseUrl, token);
+        await logoutAdmin();
       } catch (error) {
         console.error('فشل تسجيل الخروج:', error);
       }
     }
 
-    clearSession();
-  }, [apiBaseUrl, clearSession, token]);
+    await clearSession();
+    setAuthError(null);
+  }, [clearSession, role]);
 
   const value = useMemo<AdminSessionContextValue>(
     () => ({
       adminUser,
-      apiBaseUrl,
       authError,
       clearAuthError,
       createAdmin,
-      isAuthenticated: Boolean(token && adminUser),
-      isAuthenticating,
+      isAuthenticated: role === 'admin' && Boolean(adminUser),
+      isAuthenticating: isHydrating || isSubmittingLogin,
       login,
       logout,
       refreshProfile,
-      token,
       updateProfile,
     }),
     [
       adminUser,
-      apiBaseUrl,
       authError,
       clearAuthError,
       createAdmin,
-      isAuthenticating,
+      isHydrating,
+      isSubmittingLogin,
       login,
       logout,
       refreshProfile,
-      token,
+      role,
       updateProfile,
     ]
   );
