@@ -34,7 +34,7 @@ export default function ForgotPasswordScreen() {
 
     try {
       await sendForgotPasswordOtp(email.trim());
-      router.push({ pathname: './verify-code', params: { email: email.trim() } });
+      router.push({ pathname: '/auth/verify-code', params: { email: email.trim() } });
     } catch {}
   };
 

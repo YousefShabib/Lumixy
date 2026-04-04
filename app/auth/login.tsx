@@ -58,7 +58,7 @@ export default function LoginScreen() {
         <View style={styles.headerWrap}>
           <Text style={[styles.title, { fontSize: loginTitleSize, lineHeight: loginTitleSize + 12 }]}>تسجيل الدخول</Text>
           <Text style={[styles.subtitle, { fontSize: loginSubtitleSize, lineHeight: isSmallScreen ? 22 : 26 }]}>
-            أهلًا بك . أدخل بريدك الإلكتروني وكلمة المرور وسنوجهك لحسابك مباشرة
+            أهلًا بك. أدخل بريدك الإلكتروني وكلمة المرور وسنوجهك لحسابك مباشرة
           </Text>
         </View>
 
@@ -89,7 +89,7 @@ export default function LoginScreen() {
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <Link href="./forgot-password" style={styles.forgotLink}>
+        <Link href="/auth/forgot-password" style={styles.forgotLink}>
           نسيت كلمة المرور؟
         </Link>
 
@@ -103,7 +103,7 @@ export default function LoginScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>ليس لديك حساب ؟ </Text>
-          <Link href="./signup" style={styles.footerLink}>
+          <Link href="/auth/signup" style={styles.footerLink}>
             سجل الآن
           </Link>
         </View>

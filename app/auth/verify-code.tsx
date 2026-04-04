@@ -77,7 +77,7 @@ export default function VerifyCodeScreen() {
 
     try {
       await verifyPasswordOtp(email, otpCode);
-      router.push({ pathname: './reset-password', params: { email, otp: otpCode } });
+      router.push({ pathname: '/auth/reset-password', params: { email, otp: otpCode } });
     } catch {}
   };
 
