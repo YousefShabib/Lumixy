@@ -1,4 +1,4 @@
-import { apiRequest, ApiError } from '@/services/api';
+import { apiRequest } from '@/services/api';
 import { clearAuthSession } from '@/services/storage'; 
 
 export type AuthRole = 'admin' | 'provider';
@@ -20,37 +20,13 @@ export type AuthResponse = {
 };
  
 export async function loginProvider(payload: { email: string; password: string }) { 
-  return apiRequest('provider/auth/login', { method: 'POST', body: payload }) as Promise<AuthResponse>; 
+  return apiRequest('auth/login', { method: 'POST', body: payload }) as Promise<AuthResponse>; 
 } 
  
 export async function registerProvider(payload: { full_name: string; email: string; phone: string; password: string; password_confirmation: string }) { 
   return apiRequest('provider/auth/register', { method: 'POST', body: payload }) as Promise<AuthResponse>; 
 } 
 
-export async function loginAdmin(payload: { email: string; password: string }) {
-  return apiRequest('admin/auth/login', { method: 'POST', body: payload }) as Promise<AuthResponse>;
-}
-
-export async function loginWithDetectedRole(payload: { email: string; password: string }) {
-  try {
-    return await loginProvider(payload);
-  } catch (providerError) {
-    try {
-      return await loginAdmin(payload);
-    } catch (adminError) {
-      if (adminError instanceof ApiError) {
-        throw adminError;
-      }
-
-      if (providerError instanceof ApiError) {
-        throw providerError;
-      }
-
-      throw adminError;
-    }
-  }
-}
- 
 export async function sendForgotPasswordOtp(email: string) { 
   return apiRequest('auth/forgot-password', { method: 'POST', body: { email } }); 
 } 

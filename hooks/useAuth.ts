@@ -5,7 +5,6 @@ import { getReadableError } from '@/services/api';
 import {
   AuthResponse,
   loginProvider as loginProviderRequest,
-  loginWithDetectedRole as loginWithDetectedRoleRequest,
   logoutAdmin as logoutAdminRequest,
   logoutProvider as logoutProviderRequest,
   registerProvider as registerProviderRequest,
@@ -58,7 +57,7 @@ export default function useAuth() {
     },
     login: (payload: Parameters<typeof loginProviderRequest>[0]) =>
       runAction('login', async () => {
-        const response: AuthResponse = await loginWithDetectedRoleRequest(payload);
+        const response: AuthResponse = await loginProviderRequest(payload);
 
         await setSession({
           token: response.token,
