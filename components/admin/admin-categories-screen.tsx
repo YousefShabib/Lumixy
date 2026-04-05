@@ -2,10 +2,11 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  LayoutChangeEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +15,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import StatusBanner from '@/components/ui/status-banner';
 import { useAdminSession } from '@/contexts/admin-session-context';
@@ -83,7 +84,9 @@ function resolveCategoryVisual(name: string) {
 
 export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenProps) {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { logout } = useAdminSession();
+  const scrollViewRef = useRef<ScrollView | null>(null);
   const [query, setQuery] = useState('');
   const [categories, setCategories] = useState<AdminCategoryRecord[]>([]);
   const [editorState, setEditorState] = useState<EditorState>(initialEditorState);
@@ -92,6 +95,8 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
   const [isSaving, setIsSaving] = useState(false);
   const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [editorOffsetY, setEditorOffsetY] = useState(0);
+  const [shouldRevealEditor, setShouldRevealEditor] = useState(false);
 
   const isPreviewMode = mode === 'preview';
   const horizontalPadding = 20;
@@ -99,6 +104,7 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
   const cardSize = Math.floor(
     Math.min((width - horizontalPadding * 2 - gridGap) / 2, isPreviewMode ? 183 : 195)
   );
+  const scrollBottomPadding = isPreviewMode ? 24 : insets.bottom + 28;
 
   const handleUnauthorized = useCallback(
     async (error: unknown) => {
@@ -160,10 +166,29 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
     return filteredCategories.slice(0, 4);
   }, [filteredCategories, isPreviewMode, query]);
 
+  const revealEditor = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(editorOffsetY - 18, 0),
+        animated: true,
+      });
+    });
+  }, [editorOffsetY]);
+
+  useEffect(() => {
+    if (!isEditorVisible || !shouldRevealEditor || editorOffsetY <= 0) {
+      return;
+    }
+
+    revealEditor();
+    setShouldRevealEditor(false);
+  }, [editorOffsetY, isEditorVisible, revealEditor, shouldRevealEditor]);
+
   const openCreateEditor = () => {
     setEditorState(initialEditorState);
     setIsEditorVisible(true);
     setErrorMessage(null);
+    setShouldRevealEditor(true);
   };
 
   const openEditEditor = (category: AdminCategoryRecord) => {
@@ -175,6 +200,7 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
     });
     setIsEditorVisible(true);
     setErrorMessage(null);
+    setShouldRevealEditor(true);
   };
 
   const closeEditor = () => {
@@ -255,6 +281,24 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
     ]);
   };
 
+  const handleEditorLayout = ({ nativeEvent }: LayoutChangeEvent) => {
+    const nextOffset = nativeEvent.layout.y;
+
+    if (Math.abs(nextOffset - editorOffsetY) > 2) {
+      setEditorOffsetY(nextOffset);
+    }
+  };
+
+  const openCategoryProviders = (category: AdminCategoryRecord) => {
+    router.push({
+      pathname: '/admin/category-providers',
+      params: {
+        categoryId: category.id,
+        categoryName: category.name,
+      },
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="light" />
@@ -274,10 +318,17 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
         />
 
         <ScrollView
+          ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
+          alwaysBounceVertical={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentInsetAdjustmentBehavior="never"
           contentContainerStyle={[
             styles.scrollContent,
-            isPreviewMode ? styles.previewScrollContent : styles.allScrollContent,
+            {
+              paddingBottom: scrollBottomPadding,
+            },
           ]}>
           {isPreviewMode ? (
             <View style={styles.heroSection}>
@@ -332,7 +383,7 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
           ) : null}
 
           {isEditorVisible ? (
-            <View style={styles.editorCard}>
+            <View onLayout={handleEditorLayout} style={styles.editorCard}>
               <Text style={styles.editorTitle}>
                 {editorState.id ? 'تعديل بيانات القطاع' : 'إضافة قطاع جديد'}
               </Text>
@@ -473,32 +524,39 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
                       key={category.id}
                       style={[styles.card, { width: cardSize, height: cardSize }]}>
                       <View style={styles.cardActions}>
-                        <Pressable style={styles.actionButton} onPress={() => openEditEditor(category)}>
-                          <Feather name="edit-2" size={14} color="rgba(255,255,255,0.58)" />
+                        <Pressable
+                          hitSlop={10}
+                          style={({ pressed }) => [
+                            styles.actionButton,
+                            styles.actionButtonEdit,
+                            pressed && styles.actionButtonPressed,
+                          ]}
+                          onPress={() => openEditEditor(category)}>
+                          <Feather name="edit-2" size={15} color="rgba(255,255,255,0.76)" />
                         </Pressable>
                         <Pressable
-                          style={styles.actionButton}
+                          hitSlop={10}
+                          style={({ pressed }) => [
+                            styles.actionButton,
+                            styles.actionButtonDelete,
+                            pressed && styles.actionButtonPressed,
+                          ]}
                           onPress={() => handleDeleteCategory(category)}
                           disabled={busyDeleteId === category.id}>
                           {busyDeleteId === category.id ? (
                             <ActivityIndicator size="small" color={colors.error} />
                           ) : (
-                            <Feather name="trash-2" size={14} color="rgba(255,255,255,0.46)" />
+                            <Feather name="trash-2" size={15} color="rgba(255,255,255,0.62)" />
                           )}
                         </Pressable>
                       </View>
 
                       <Pressable
-                        style={styles.cardBody}
-                        onPress={() =>
-                          router.push({
-                            pathname: '/admin/category-providers',
-                            params: {
-                              categoryId: category.id,
-                              categoryName: category.name,
-                            },
-                          })
-                        }>
+                        style={({ pressed }) => [
+                          styles.cardBody,
+                          pressed && styles.cardBodyPressed,
+                        ]}
+                        onPress={() => openCategoryProviders(category)}>
                         <View
                           style={[
                             styles.iconCircle,
@@ -567,12 +625,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     gap: 14,
-  },
-  previewScrollContent: {
-    paddingBottom: 120,
-  },
-  allScrollContent: {
-    paddingBottom: 34,
   },
   heroSection: {
     alignItems: 'center',
@@ -856,7 +908,12 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 14,
+    borderRadius: 18,
+    paddingTop: 26,
+    paddingHorizontal: 10,
+  },
+  cardBodyPressed: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   cardActions: {
     position: 'absolute',
@@ -866,13 +923,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 2,
   },
   actionButton: {
-    padding: 4,
-    minWidth: 20,
-    minHeight: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+  },
+  actionButtonEdit: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  actionButtonDelete: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  actionButtonPressed: {
+    opacity: 0.78,
   },
   iconCircle: {
     width: 56,

@@ -3,7 +3,6 @@ import { Platform } from 'react-native';
 
 import { clearToken, getStoredToken } from '@/services/storage';
 
-const DEFAULT_API_BASE_URL = 'http://192.168.88.5:8000/api';
 const REQUEST_TIMEOUT_MS = 15000;
 
 let preferredApiBaseUrl: string | null = null;
@@ -14,16 +13,27 @@ type ErrorPayload = {
 };
 
 type ExpoConstantsLike = typeof Constants & {
+  experienceUrl?: string | null;
   expoGoConfig?: {
     debuggerHost?: string;
   };
+  expoConfig?: {
+    hostUri?: string;
+  } | null;
   manifest2?: {
     extra?: {
+      expoClient?: {
+        hostUri?: string;
+      };
       expoGo?: {
         debuggerHost?: string;
       };
     };
   };
+  platform?: {
+    hostUri?: string;
+  };
+  linkingUri?: string;
 };
 
 export type ApiRequestConfig = {
@@ -83,14 +93,50 @@ function addCandidate(target: Set<string>, value?: string | null) {
   target.add(normalizeApiBaseUrl(value));
 }
 
-function getDebuggerHost() {
-  const constants = Constants as ExpoConstantsLike;
-  const rawHost =
-    constants.expoGoConfig?.debuggerHost ??
-    constants.manifest2?.extra?.expoGo?.debuggerHost ??
-    null;
+function extractHost(value?: string | null) {
+  if (!value) {
+    return null;
+  }
 
-  return rawHost?.split(':')[0] ?? null;
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    return new URL(normalized).hostname;
+  } catch {
+    const withoutScheme = normalized.replace(/^[a-z]+:\/\//i, '');
+    return withoutScheme.split('/')[0]?.split(':')[0] ?? null;
+  }
+}
+
+function getDevServerHosts() {
+  const constants = Constants as ExpoConstantsLike;
+  const hosts = new Set<string>();
+
+  const rawCandidates = [
+    constants.expoGoConfig?.debuggerHost,
+    constants.manifest2?.extra?.expoGo?.debuggerHost,
+    constants.expoConfig?.hostUri,
+    constants.manifest2?.extra?.expoClient?.hostUri,
+    constants.platform?.hostUri,
+    constants.linkingUri,
+    constants.experienceUrl,
+  ];
+
+  for (const candidate of rawCandidates) {
+    const host = extractHost(candidate);
+
+    if (!host || host === 'localhost' || host === '127.0.0.1') {
+      continue;
+    }
+
+    hosts.add(host);
+  }
+
+  return Array.from(hosts);
 }
 
 function getApiBaseCandidates() {
@@ -99,12 +145,9 @@ function getApiBaseCandidates() {
   addCandidate(candidates, preferredApiBaseUrl);
   addCandidate(candidates, process.env.EXPO_PUBLIC_API_BASE_URL ?? null);
   addCandidate(candidates, process.env.EXPO_PUBLIC_API_URL ?? null);
-  addCandidate(candidates, DEFAULT_API_BASE_URL);
 
-  const debuggerHost = getDebuggerHost();
-
-  if (debuggerHost && debuggerHost !== 'localhost' && debuggerHost !== '127.0.0.1') {
-    addCandidate(candidates, `http://${debuggerHost}:8000`);
+  for (const host of getDevServerHosts()) {
+    addCandidate(candidates, `http://${host}:8000`);
   }
 
   if (Platform.OS === 'android') {
@@ -308,12 +351,12 @@ export async function apiRequest<T = unknown>(
 
   const networkMessage =
     lastError instanceof Error && lastError.name === 'AbortError'
-      ? 'Request timeout. Please try again.'
-      : 'Unable to connect to server. Check your API URL and network.';
+      ? 'انتهت مهلة الاتصال بالخادم. تأكد من تشغيله ثم حاول مرة أخرى.'
+      : 'تعذر الوصول إلى الخادم. شغّل الـ backend أو اضبط EXPO_PUBLIC_API_BASE_URL على العنوان الصحيح.';
 
   throw new ApiError({
     baseUrl: preferredApiBaseUrl,
-    details: candidates.map((candidate) => `Tried ${candidate}`),
+    details: candidates.map((candidate) => `تمت المحاولة عبر ${candidate}`),
     isNetworkError: true,
     message: networkMessage,
     status: 0,

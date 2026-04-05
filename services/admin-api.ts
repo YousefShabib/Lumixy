@@ -9,6 +9,11 @@ export type AdminUser = {
   status: 'active' | 'inactive';
 };
 
+export type AdminAccountRecord = AdminUser & {
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type AdminLoginResponse = {
   message: string;
   token: string;
@@ -119,6 +124,20 @@ export async function createAdminAccount(payload: AdminCreatePayload) {
     method: 'POST',
     requiresAuth: true,
     body: payload,
+  });
+}
+
+export async function fetchAdminAccounts() {
+  return adminRequest<AdminAccountRecord[]>('/admin/admins', {
+    method: 'GET',
+    requiresAuth: true,
+  });
+}
+
+export async function deleteAdminAccount(adminId: string) {
+  return adminRequest<{ message: string }>(`/admin/admins/${adminId}`, {
+    method: 'DELETE',
+    requiresAuth: true,
   });
 }
 

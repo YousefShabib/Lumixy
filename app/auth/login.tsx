@@ -12,7 +12,7 @@ import AuthPrimaryButton from '@/components/auth/AuthPrimaryButton';
 import AuthScreenShell from '@/components/auth/AuthScreenShell';
 import { authShared } from '@/components/auth/authTheme';
 import useAuth from '@/hooks/useAuth';
-import { getRouteForRole } from '@/services/authRoutes';
+import { getRouteForUser } from '@/services/authRoutes';
 import { colors, typography } from '@/theme';
 
 export default function LoginScreen() {
@@ -37,7 +37,7 @@ export default function LoginScreen() {
 
     try {
       const response = await login({ email: email.trim(), password });
-      router.replace(getRouteForRole(response.user.role));
+      router.replace(getRouteForUser(response.user));
     } catch {}
   };
 

@@ -24,6 +24,13 @@ const profileLinks = [
     icon: 'person-add-outline' as const,
     route: '/admin/add-admin' as const,
   },
+  {
+    id: 'admin-settings',
+    title: 'عرض وإعدادات الأدمن',
+    subtitle: 'عرض جميع الأدمنز الموجودين مع إمكانية حذف الحسابات',
+    icon: 'settings-outline' as const,
+    route: '/admin/admin-settings' as const,
+  },
 ];
 
 export default function AdminProfileScreen() {
