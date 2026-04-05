@@ -1,199 +1,150 @@
-import { Link, useRouter } from 'expo-router';
+import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
+  TextInput,
   View,
 } from 'react-native';
 
-import AuthField from '@/components/auth/AuthField';
-import AuthPrimaryButton from '@/components/auth/AuthPrimaryButton';
-import AuthScreenShell from '@/components/auth/AuthScreenShell';
-import { authShared } from '@/components/auth/authTheme';
-import useAuth from '@/hooks/useAuth';
-import { getRouteForRole } from '@/services/authRoutes';
-import { colors, typography } from '@/theme';
+import { colors, Logo, typography } from '@/theme';
 
 export default function LoginScreen() {
-  const router = useRouter();
-  const { width, height } = useWindowDimensions();
-  const isSmallScreen = width < 370 || height < 760;
-  const loginLogoSize = width < 370 ? 34 : 40;
-  const loginTitleSize = width < 370 ? 26 : width < 430 ? 30 : 32;
-  const loginSubtitleSize = isSmallScreen ? 13 : 15;
-  const { error, clearError, isLoading, login, setError } = useAuth();
-
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const loading = isLoading('login');
-  const canSubmit = Boolean(email.trim() && password.trim()) && !loading;
-
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('يرجى إدخال البريد الإلكتروني وكلمة المرور.');
-      return;
-    }
-
-    try {
-      const response = await login({ email: email.trim(), password });
-      router.replace(getRouteForRole(response.user.role));
-    } catch {}
-  };
 
   return (
-    <AuthScreenShell
-      isSmallScreen={isSmallScreen}
-      topPaddingSmall={24}
-      topPaddingLarge={40}
-      bottomPaddingSmall={24}
-      bottomPaddingLarge={36}
-      contentContainerStyle={styles.contentContainer}>
-      <View style={[styles.logoWrap, { marginBottom: isSmallScreen ? 24 : 36 }]}>
-        <Text style={[styles.logo, { fontSize: loginLogoSize }]}>LUMIXY</Text>
-        <Text style={styles.subLogo}>PREMIUM PROVIDER PORTAL</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar style="light" />
+      <View style={styles.glowTop} />
+      <View style={styles.glowBottom} />
+
+      <View style={styles.header}>
+        <Logo size="small" />
+        <Text style={styles.title}>تسجيل دخول مزود الخدمة</Text>
+        <Text style={styles.subtitle}>ادخل بياناتك للمتابعة مباشرة إلى لوحة التحكم الخاصة بك.</Text>
       </View>
 
-      <View style={styles.panel}>
-        <View style={styles.headerWrap}>
-          <Text style={[styles.title, { fontSize: loginTitleSize, lineHeight: loginTitleSize + 12 }]}>تسجيل الدخول</Text>
-          <Text style={[styles.subtitle, { fontSize: loginSubtitleSize, lineHeight: isSmallScreen ? 22 : 26 }]}>
-            أهلًا بك. أدخل بريدك الإلكتروني وكلمة المرور وسنوجهك لحسابك مباشرة
-          </Text>
-        </View>
-
-        <View style={[styles.form, { gap: isSmallScreen ? 12 : 16 }]}>
-          <AuthField
-            label="البريد الإلكتروني"
-            placeholder="provider@lumixy.ps"
-            icon="mail-outline"
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              if (error) clearError();
-            }}
-            keyboardType="email-address"
-          />
-          <AuthField
-            label="كلمة المرور"
-            placeholder="••••••••"
-            secureTextEntry
-            icon="lock-closed-outline"
-            value={password}
-            onChangeText={(value) => {
-              setPassword(value);
-              if (error) clearError();
-            }}
-          />
-        </View>
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <Link href="/auth/forgot-password" style={styles.forgotLink}>
-          نسيت كلمة المرور؟
-        </Link>
-
-        <AuthPrimaryButton
-          title={canSubmit ? 'تسجيل الدخول' : 'أدخل البيانات للمتابعة'}
-          loading={loading}
-          disabled={!canSubmit}
-          onPress={handleLogin}
-          marginTop={isSmallScreen ? 14 : 18}
+      <View style={styles.form}>
+        <TextInput
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="رقم الجوال"
+          placeholderTextColor={colors.textMuted}
+          keyboardType="phone-pad"
+          style={styles.input}
+          textAlign="right"
+        />
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          placeholder="كلمة المرور"
+          placeholderTextColor={colors.textMuted}
+          secureTextEntry
+          style={styles.input}
+          textAlign="right"
         />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>ليس لديك حساب ؟ </Text>
-          <Link href="/auth/signup" style={styles.footerLink}>
-            سجل الآن
-          </Link>
-        </View>
+        <Pressable style={styles.primaryButton} onPress={() => router.replace('/provider/tabs')}>
+          <Text style={styles.primaryButtonText}>دخول</Text>
+        </Pressable>
 
-        <Link href="/entry" style={styles.backHomeLink}>
-          العودة إلى الصفحة الرئيسية
-        </Link>
+        <Pressable style={styles.secondaryButton} onPress={() => router.back()}>
+          <Text style={styles.secondaryButtonText}>رجوع</Text>
+        </Pressable>
       </View>
-    </AuthScreenShell>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  contentContainer: {
-    paddingHorizontal: 6,
-    flexGrow: 1,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingHorizontal: 24,
+    paddingTop: 72,
+    paddingBottom: 32,
+    justifyContent: 'space-between',
   },
-  logoWrap: {
+  glowTop: {
+    position: 'absolute',
+    top: 40,
+    left: -30,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(109, 40, 217, 0.18)',
+  },
+  glowBottom: {
+    position: 'absolute',
+    right: -50,
+    bottom: 120,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(167, 139, 250, 0.14)',
+  },
+  header: {
     alignItems: 'center',
-  },
-  logo: {
-    color: colors.primary,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  subLogo: {
-    color: '#A2A0B3',
-    marginTop: 6,
-    fontSize: 11,
-    letterSpacing: 2.8,
-    fontWeight: '600',
-    fontFamily: typography.fontFamily.bold,
-  },
-  headerWrap: {
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  panel: {
-    ...authShared.panel,
-    marginTop: 8,
-    paddingVertical: 18,
-    borderRadius: 22,
+    gap: 16,
   },
   title: {
     color: colors.text,
-    fontWeight: '800',
     fontFamily: typography.fontFamily.bold,
-    textAlign: 'right',
+    fontSize: 28,
+    textAlign: 'center',
   },
   subtitle: {
     color: colors.textSecondary,
-    textAlign: 'right',
-    marginTop: 10,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+    maxWidth: 320,
   },
   form: {
-    width: '100%',
+    gap: 14,
   },
-  errorText: {
-    ...authShared.errorText,
-  },
-  forgotLink: {
-    marginTop: 12,
-    alignSelf: 'flex-end',
-    color: '#AFA4C5',
-    fontSize: 14,
-  },
-  footer: {
-    marginTop: 24,
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    color: colors.textMuted,
+  input: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    color: colors.text,
+    fontFamily: typography.fontFamily.regular,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
   },
-  footerLink: {
-    color: '#E6DEFF',
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  primaryButtonText: {
+    color: colors.text,
+    fontFamily: typography.fontFamily.bold,
     fontSize: 16,
-    fontWeight: '700',
-    textDecorationLine: 'none',
-    fontFamily: typography.fontFamily.bold,
   },
-  backHomeLink: {
-    marginTop: 34,
-    alignSelf: 'center',
-    color: '#8B8DAA',
-    fontSize: 14,
+  secondaryButton: {
+    borderRadius: 18,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  secondaryButtonText: {
+    color: colors.textSecondary,
     fontFamily: typography.fontFamily.bold,
+    fontSize: 15,
   },
 });
