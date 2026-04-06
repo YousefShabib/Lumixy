@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
 const TOKEN_STORAGE_KEY = 'lumixy-auth-token';
@@ -39,7 +40,7 @@ async function hydrateSessionFromStore() {
   sessionHydrated = true;
 
   try {
-    const sessionText = await SecureStore.getItemAsync(AUTH_SESSION_STORAGE_KEY);
+    const sessionText = await AsyncStorage.getItem(AUTH_SESSION_STORAGE_KEY);
     sessionCache = sessionText ? (JSON.parse(sessionText) as StoredAuthSession) : null;
     tokenCache = sessionCache?.token ?? tokenCache;
   } catch {
@@ -79,7 +80,7 @@ export async function saveAuthSession(session: StoredAuthSession) {
   sessionCache = session;
   sessionHydrated = true;
   await saveToken(session.token);
-  await SecureStore.setItemAsync(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
+  await AsyncStorage.setItem(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
 }
 
 export async function clearAuthSession() {
@@ -88,7 +89,7 @@ export async function clearAuthSession() {
   await clearToken();
 
   try {
-    await SecureStore.deleteItemAsync(AUTH_SESSION_STORAGE_KEY);
+    await AsyncStorage.removeItem(AUTH_SESSION_STORAGE_KEY);
   } catch {
     // Ignore storage cleanup errors.
   }

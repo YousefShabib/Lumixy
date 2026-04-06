@@ -1,113 +1,62 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React from 'react';
+import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from 'react-native';
 
 import AdminDetailShell from '@/components/admin/admin-detail-shell';
 import StatusBanner from '@/components/ui/status-banner';
 import { useAdminSession } from '@/contexts/admin-session-context';
 import {
-  deleteAdminAccount,
-  fetchAdminAccounts,
-  type AdminAccountRecord,
-} from '@/services/admin-api';
-import { ApiError, getReadableError } from '@/services/api';
-import { colors, typography } from '@/theme';
+  sortAdminAccounts,
+  useAdminAccountsQuery,
+  useDeleteAdminMutation,
+} from '@/hooks/admin/use-admin-accounts';
+import { getReadableError } from '@/services/api';
 
 export default function AdminSettingsScreen() {
   const { adminUser, logout } = useAdminSession();
-  const [admins, setAdmins] = useState<AdminAccountRecord[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
+  const adminAccountsQuery = useAdminAccountsQuery();
+  const deleteAdminMutation = useDeleteAdminMutation();
 
-  const handleUnauthorized = useCallback(
-    async (error: unknown) => {
-      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-        await logout();
-        return true;
-      }
+  const sortedAdmins = sortAdminAccounts(adminAccountsQuery.data ?? [], adminUser?.id);
 
-      return false;
-    },
-    [logout]
-  );
+  const handleUnauthorized = async (error: unknown) => {
+    const message = getReadableError(error);
 
-  const loadAdmins = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const { data } = await fetchAdminAccounts();
-      setAdmins(data);
-    } catch (error) {
-      console.error('فشل تحميل قائمة الأدمنز:', error);
-
-      if (await handleUnauthorized(error)) {
-        return;
-      }
-
-      setErrorMessage(getReadableError(error));
-    } finally {
-      setIsLoading(false);
+    if (
+      message.includes('انتهت') ||
+      message.includes('صلاحية') ||
+      message.includes('Unauthenticated')
+    ) {
+      await logout();
+      return true;
     }
-  }, [handleUnauthorized]);
 
-  useEffect(() => {
-    void loadAdmins();
-  }, [loadAdmins]);
+    return false;
+  };
 
-  const sortedAdmins = useMemo(() => {
-    return [...admins].sort((first, second) => {
-      if (first.id === adminUser?.id) {
-        return -1;
-      }
-
-      if (second.id === adminUser?.id) {
-        return 1;
-      }
-
-      return (second.created_at ?? '').localeCompare(first.created_at ?? '');
-    });
-  }, [adminUser?.id, admins]);
-
-  const handleDeleteAdmin = (admin: AdminAccountRecord) => {
-    if (admin.id === adminUser?.id) {
+  const handleDeleteAdmin = (adminId: string, adminName: string, isCurrentAdmin: boolean) => {
+    if (isCurrentAdmin) {
       Alert.alert('غير متاح', 'لا يمكنك حذف حسابك الإداري الحالي.');
       return;
     }
 
-    Alert.alert('حذف الأدمن', `هل تريد حذف حساب ${admin.full_name} من النظام؟`, [
+    Alert.alert('حذف الأدمن', `هل تريد حذف حساب ${adminName} من النظام؟`, [
       { text: 'إلغاء', style: 'cancel' },
       {
         text: 'حذف',
         style: 'destructive',
         onPress: () => {
           void (async () => {
-            setBusyDeleteId(admin.id);
-            setErrorMessage(null);
-
             try {
-              const { data } = await deleteAdminAccount(admin.id);
-              Alert.alert('تم الحذف', data.message);
-              await loadAdmins();
+              const result = await deleteAdminMutation.mutateAsync(adminId);
+              Alert.alert('تم الحذف', result.message);
             } catch (error) {
-              console.error('فشل حذف الأدمن:', error);
-
               if (await handleUnauthorized(error)) {
                 return;
               }
 
-              setErrorMessage(getReadableError(error));
-            } finally {
-              setBusyDeleteId(null);
+              Alert.alert('تعذر الحذف', getReadableError(error));
             }
           })();
         },
@@ -118,101 +67,141 @@ export default function AdminSettingsScreen() {
   return (
     <AdminDetailShell
       badge="إعدادات الأدمن"
-      notice="يمكنك مراجعة جميع حسابات الأدمن وحذف أي حساب غير مطلوب مع حماية حسابك الحالي."
-      subtitle="عرض جميع الحسابات الإدارية الموجودة في النظام"
-      title="عرض وإعدادات الأدمن">
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryBadge}>
-          <Ionicons name="shield-checkmark-outline" size={18} color={colors.primaryLight} />
-        </View>
-        <View style={styles.summaryTextBlock}>
-          <Text style={styles.summaryValue}>{admins.length}</Text>
-          <Text style={styles.summaryLabel}>إجمالي حسابات الأدمن</Text>
-        </View>
+      title="عرض وإعدادات الأدمن"
+      titleClassName="text-[24px] leading-9">
+      <View className="-mt-1 items-center pb-1">
+        <LinearGradient
+          colors={['rgba(139, 92, 246, 0.20)', 'rgba(109, 40, 217, 0.08)']}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={{
+            alignItems: 'center',
+            borderColor: 'rgba(255,255,255,0.07)',
+            borderRadius: 28,
+            borderWidth: 1,
+            minWidth: 148,
+            paddingHorizontal: 24,
+            paddingVertical: 16,
+          }}>
+          <View className="mb-3 h-[34px] w-[34px] items-center justify-center rounded-[14px] bg-admin-primaryLight/14">
+            <Ionicons color="#8B5CF6" name="shield-checkmark-outline" size={18} />
+          </View>
+
+          <View className="flex-row-reverse items-center gap-2.5">
+            <Text className="font-cairo-bold text-[14px] text-admin-text">إجمالي حسابات الأدمن</Text>
+            <Text
+              className="text-[30px] leading-none text-admin-text"
+              style={{
+                fontFamily: Platform.select({ ios: 'System', android: 'sans-serif-medium', default: 'System' }),
+                fontVariant: ['tabular-nums'],
+                fontWeight: '700',
+              }}>
+              {String(adminAccountsQuery.data?.length ?? 0)}
+            </Text>
+          </View>
+        </LinearGradient>
       </View>
 
-      {errorMessage ? (
+      {adminAccountsQuery.isError ? (
         <StatusBanner
-          message={errorMessage}
-          tone="error"
           actionLabel="إعادة المحاولة"
+          message={getReadableError(adminAccountsQuery.error)}
           onAction={() => {
-            void loadAdmins();
+            void adminAccountsQuery.refetch();
           }}
+          tone="error"
         />
       ) : null}
 
-      <View style={styles.listCard}>
-        <View style={styles.listHeader}>
-          <Text style={styles.listSubtitle}>كل حساب يظهر هنا مع خيار حذف مباشر</Text>
-          <Text style={styles.listTitle}>قائمة الأدمنز</Text>
+      <View className="gap-4 rounded-[30px] border border-white/10 bg-admin-panel px-4.5 py-4.5">
+        <View className="items-end">
+          <Text className="text-right font-cairo-bold text-[19px] text-admin-text">
+            قائمة الأدمنز
+          </Text>
         </View>
 
-        {isLoading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator size="large" color={colors.primaryLight} />
-            <Text style={styles.loadingText}>جار تحميل الأدمنز...</Text>
+        {adminAccountsQuery.isLoading ? (
+          <View className="min-h-[180px] items-center justify-center gap-2.5">
+            <ActivityIndicator color="#8B5CF6" size="large" />
+            <Text className="font-cairo text-[14px] text-admin-muted">جار تحميل الأدمنز...</Text>
           </View>
         ) : sortedAdmins.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={24} color={colors.textMuted} />
-            <Text style={styles.emptyTitle}>لا توجد حسابات أدمن حالياً</Text>
-            <Text style={styles.emptyText}>يمكنك إضافة حساب جديد من شاشة إضافة أدمن جديد.</Text>
+          <View className="items-center justify-center rounded-[22px] border border-white/5 bg-white/3 px-4.5 py-7">
+            <Ionicons color="#6B7280" name="people-outline" size={24} />
+            <Text className="mt-2.5 font-cairo-bold text-[17px] text-admin-text">
+              لا توجد حسابات أدمن حالياً
+            </Text>
+            <Text className="mt-1 text-center font-cairo text-[13px] leading-5 text-admin-muted">
+              يمكنك إضافة حساب جديد من شاشة إضافة أدمن جديد.
+            </Text>
           </View>
         ) : (
-          <View style={styles.adminList}>
+          <View className="gap-2.5">
             {sortedAdmins.map((admin) => {
               const isCurrentAdmin = admin.id === adminUser?.id;
-              const isDeleting = busyDeleteId === admin.id;
+              const isDeleting = deleteAdminMutation.isPending && deleteAdminMutation.variables === admin.id;
 
               return (
-                <View key={admin.id} style={styles.adminRow}>
-                  <Pressable
-                    onPress={() => handleDeleteAdmin(admin)}
-                    disabled={isCurrentAdmin || isDeleting}
-                    style={({ pressed }) => [
-                      styles.deleteButton,
-                      isCurrentAdmin ? styles.deleteButtonDisabled : null,
-                      pressed && !isCurrentAdmin && !isDeleting ? styles.deleteButtonPressed : null,
-                    ]}>
-                    {isDeleting ? (
-                      <ActivityIndicator size="small" color={colors.error} />
-                    ) : (
-                      <Feather
-                        name="trash-2"
-                        size={16}
-                        color={isCurrentAdmin ? colors.textMuted : colors.error}
-                      />
-                    )}
-                  </Pressable>
+                <View
+                  key={admin.id}
+                  className={`min-h-[92px] flex-row-reverse items-center gap-3 rounded-[24px] border px-3.5 py-3 ${
+                    isCurrentAdmin
+                      ? 'border-admin-primaryLight/12 bg-admin-primaryLight/5'
+                      : 'border-white/6 bg-white/3'
+                  }`}>
+                  <View
+                    className={`h-[48px] w-[48px] items-center justify-center rounded-[18px] ${
+                      isCurrentAdmin ? 'bg-admin-primaryLight/12' : 'bg-white/5'
+                    }`}>
+                    <Ionicons
+                      color={isCurrentAdmin ? '#8B5CF6' : '#A78BFA'}
+                      name={isCurrentAdmin ? 'shield-half-outline' : 'person-circle-outline'}
+                      size={22}
+                    />
+                  </View>
 
-                  <View style={styles.adminText}>
-                    <View style={styles.rowTitleLine}>
+                  <View className="flex-1 items-end">
+                    <View className="mb-1 flex-row-reverse items-center gap-2">
+                      <Text className="text-right font-cairo-bold text-[16px] text-admin-text">
+                        {admin.full_name}
+                      </Text>
                       {isCurrentAdmin ? (
                         <LinearGradient
                           colors={['rgba(139, 92, 246, 0.22)', 'rgba(109, 40, 217, 0.12)']}
-                          start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
-                          style={styles.currentBadge}>
-                          <Text style={styles.currentBadgeText}>أنت</Text>
+                          start={{ x: 0, y: 0 }}
+                          style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                          <Text className="font-cairo-bold text-[11px] text-admin-accent">أنت</Text>
                         </LinearGradient>
                       ) : null}
-                      <Text style={styles.adminName}>{admin.full_name}</Text>
                     </View>
 
-                    <Text style={styles.adminMeta}>{admin.email}</Text>
-                    <Text style={styles.adminMeta}>
+                    <Text className="text-right font-cairo text-[12px] leading-5 text-admin-muted">
+                      {admin.email}
+                    </Text>
+                    <Text className="text-right font-cairo text-[12px] leading-5 text-admin-subtle">
                       {admin.phone?.trim() ? admin.phone : 'لا يوجد رقم جوال محفوظ'}
                     </Text>
                   </View>
 
-                  <View style={styles.avatarWrap}>
-                    <Ionicons
-                      name={isCurrentAdmin ? 'shield-half-outline' : 'person-circle-outline'}
-                      size={22}
-                      color={colors.primaryLight}
-                    />
-                  </View>
+                  <Pressable
+                    className={`h-[42px] w-[42px] items-center justify-center rounded-full border ${
+                      isCurrentAdmin
+                        ? 'border-white/5 bg-white/5'
+                        : 'border-admin-danger/15 bg-admin-danger/10'
+                    }`}
+                    disabled={isCurrentAdmin || isDeleting}
+                    onPress={() => handleDeleteAdmin(admin.id, admin.full_name, isCurrentAdmin)}>
+                    {isDeleting ? (
+                      <ActivityIndicator color="#EF4444" size="small" />
+                    ) : (
+                      <Feather
+                        color={isCurrentAdmin ? '#6B7280' : '#EF4444'}
+                        name="trash-2"
+                        size={16}
+                      />
+                    )}
+                  </Pressable>
                 </View>
               );
             })}
@@ -222,175 +211,3 @@ export default function AdminSettingsScreen() {
     </AdminDetailShell>
   );
 }
-
-const styles = StyleSheet.create({
-  summaryCard: {
-    minHeight: 92,
-    borderRadius: 28,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    backgroundColor: 'rgba(19, 16, 24, 0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 14,
-  },
-  summaryBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(139, 92, 246, 0.10)',
-  },
-  summaryTextBlock: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  summaryValue: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 28,
-    textAlign: 'right',
-  },
-  summaryLabel: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 13,
-    textAlign: 'right',
-    marginTop: 2,
-  },
-  listCard: {
-    borderRadius: 28,
-    padding: 18,
-    backgroundColor: 'rgba(19, 16, 24, 0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    gap: 14,
-  },
-  listHeader: {
-    alignItems: 'flex-end',
-  },
-  listTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 20,
-    textAlign: 'right',
-  },
-  listSubtitle: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
-    textAlign: 'right',
-    marginBottom: 4,
-  },
-  loadingState: {
-    minHeight: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  loadingText: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 14,
-  },
-  emptyState: {
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    paddingVertical: 28,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 17,
-    marginTop: 10,
-  },
-  emptyText: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 4,
-  },
-  adminList: {
-    gap: 12,
-  },
-  adminRow: {
-    minHeight: 94,
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  deleteButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.14)',
-  },
-  deleteButtonDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  deleteButtonPressed: {
-    opacity: 0.82,
-  },
-  adminText: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  rowTitleLine: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  adminName: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-    textAlign: 'right',
-  },
-  adminMeta: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
-    textAlign: 'right',
-    lineHeight: 18,
-  },
-  currentBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  currentBadgeText: {
-    color: colors.accent,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 11,
-  },
-  avatarWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(139, 92, 246, 0.10)',
-  },
-});

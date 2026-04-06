@@ -6,9 +6,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import 'react-native-reanimated';
+import '../global.css';
+import '@/lib/nativewind-interop';
 
-import { AuthProvider } from '@/contexts/AuthContext';
-import { AdminSessionProvider } from '@/contexts/admin-session-context';
+import AppProviders from '@/components/providers/app-providers';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 void SplashScreen.preventAutoHideAsync();
@@ -36,13 +37,11 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <AdminSessionProvider>
+    <AppProviders>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack screenOptions={{ headerShown: false }} />
           <StatusBar style="auto" />
         </ThemeProvider>
-      </AdminSessionProvider>
-    </AuthProvider>
+    </AppProviders>
   );
 }

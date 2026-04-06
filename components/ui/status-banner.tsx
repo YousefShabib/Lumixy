@@ -1,38 +1,46 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-
-import { colors, typography } from '@/theme';
+import { Pressable, Text, View } from 'react-native';
 
 type StatusTone = 'error' | 'info' | 'success' | 'warning';
 
 const toneConfig: Record<
   StatusTone,
-  { background: string; border: string; color: string; icon: React.ComponentProps<typeof Ionicons>['name'] }
+  {
+    actionClassName: string;
+    borderClassName: string;
+    containerClassName: string;
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    iconColor: string;
+  }
 > = {
   error: {
-    background: 'rgba(239, 68, 68, 0.12)',
-    border: 'rgba(239, 68, 68, 0.18)',
-    color: colors.error,
+    actionClassName: 'text-admin-danger',
+    borderClassName: 'border-admin-danger/20',
+    containerClassName: 'bg-admin-danger/10',
     icon: 'alert-circle-outline',
+    iconColor: '#EF4444',
   },
   info: {
-    background: 'rgba(139, 92, 246, 0.12)',
-    border: 'rgba(139, 92, 246, 0.18)',
-    color: colors.primaryLight,
+    actionClassName: 'text-admin-primaryLight',
+    borderClassName: 'border-admin-primaryLight/20',
+    containerClassName: 'bg-admin-primaryLight/10',
     icon: 'information-circle-outline',
+    iconColor: '#8B5CF6',
   },
   success: {
-    background: 'rgba(16, 185, 129, 0.12)',
-    border: 'rgba(16, 185, 129, 0.18)',
-    color: colors.success,
+    actionClassName: 'text-admin-success',
+    borderClassName: 'border-admin-success/20',
+    containerClassName: 'bg-admin-success/10',
     icon: 'checkmark-circle-outline',
+    iconColor: '#10B981',
   },
   warning: {
-    background: 'rgba(245, 158, 11, 0.12)',
-    border: 'rgba(245, 158, 11, 0.18)',
-    color: colors.warning,
+    actionClassName: 'text-admin-warning',
+    borderClassName: 'border-admin-warning/20',
+    containerClassName: 'bg-admin-warning/10',
     icon: 'warning-outline',
+    iconColor: '#F59E0B',
   },
 };
 
@@ -53,46 +61,19 @@ export default function StatusBanner({
 
   return (
     <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: config.background,
-          borderColor: config.border,
-        },
-      ]}>
+      className={`min-h-[52px] flex-row items-center justify-between gap-3 rounded-[18px] border px-3.5 py-3 ${config.containerClassName} ${config.borderClassName}`}>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction}>
-          <Text style={[styles.actionText, { color: config.color }]}>{actionLabel}</Text>
+          <Text className={`font-cairo-bold text-[12px] ${config.actionClassName}`}>
+            {actionLabel}
+          </Text>
         </Pressable>
       ) : null}
 
-      <Text style={styles.message}>{message}</Text>
-      <Ionicons name={config.icon} size={18} color={config.color} />
+      <Text className="flex-1 text-right font-cairo-bold text-[13px] leading-5 text-admin-text">
+        {message}
+      </Text>
+      <Ionicons color={config.iconColor} name={config.icon} size={18} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    minHeight: 52,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  message: {
-    flex: 1,
-    color: colors.text,
-    fontFamily: typography.fontFamily.semiBold,
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: 'right',
-  },
-  actionText: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 12,
-  },
-});

@@ -1,3 +1,4 @@
+import axios, { isAxiosError } from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
@@ -139,7 +140,7 @@ function getDevServerHosts() {
   return Array.from(hosts);
 }
 
-function getApiBaseCandidates() {
+export function getApiBaseCandidates() {
   const candidates = new Set<string>();
 
   addCandidate(candidates, preferredApiBaseUrl);
@@ -159,6 +160,32 @@ function getApiBaseCandidates() {
   }
 
   return Array.from(candidates);
+}
+
+export function resolveApiAssetUrl(path?: string | null) {
+  const trimmedPath = path?.trim();
+
+  if (!trimmedPath) {
+    return null;
+  }
+
+  if (trimmedPath.startsWith('http://') || trimmedPath.startsWith('https://')) {
+    return trimmedPath;
+  }
+
+  const primaryBaseUrl = getApiBaseCandidates()[0];
+
+  if (!primaryBaseUrl) {
+    return null;
+  }
+
+  const rootBaseUrl = primaryBaseUrl.replace(/\/api$/, '');
+  const normalizedPath = trimmedPath.replace(/^\/+/, '');
+  const assetPath = normalizedPath.startsWith('storage/')
+    ? normalizedPath
+    : `storage/${normalizedPath}`;
+
+  return `${rootBaseUrl}/${assetPath}?v=${encodeURIComponent(normalizedPath)}`;
 }
 
 function buildUrl(baseUrl: string, path: string) {
@@ -251,20 +278,6 @@ function extractApiMessage(payload: unknown, status: number | null, fallbackMess
   return fallbackMessage;
 }
 
-async function parseResponsePayload(response: Response) {
-  const rawText = await response.text();
-
-  if (!rawText) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(rawText) as unknown;
-  } catch {
-    return rawText;
-  }
-}
-
 export async function apiRequest<T = unknown>(
   path: string,
   config: ApiRequestConfig = {}
@@ -280,20 +293,18 @@ export async function apiRequest<T = unknown>(
   let lastError: unknown = null;
 
   for (const candidate of candidates) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const requestHeaders: Record<string, string> = {
       Accept: 'application/json',
       ...headers,
     };
 
-    let requestBody: BodyInit | undefined;
+    let requestBody: BodyInit | FormData | Record<string, unknown> | undefined;
 
     if (typeof FormData !== 'undefined' && body instanceof FormData) {
       requestBody = body;
     } else if (body != null) {
       requestHeaders['Content-Type'] = 'application/json';
-      requestBody = JSON.stringify(body);
+      requestBody = body;
     }
 
     if (token) {
@@ -304,15 +315,17 @@ export async function apiRequest<T = unknown>(
     triedUrls.push(url);
 
     try {
-      const response = await fetch(url, {
-        method,
+      const response = await axios.request<T>({
+        data: requestBody,
         headers: requestHeaders,
-        body: requestBody,
-        signal: controller.signal,
+        method,
+        timeout: timeoutMs,
+        url,
+        validateStatus: () => true,
       });
-      const payload = await parseResponsePayload(response);
+      const payload = response.data;
 
-      if (!response.ok) {
+      if (response.status < 200 || response.status >= 300) {
         if (response.status === 401 && requiresAuth) {
           await clearToken();
         }
@@ -334,23 +347,35 @@ export async function apiRequest<T = unknown>(
         throw error;
       }
 
-      if (error instanceof SyntaxError) {
-        throw new ApiError({
-          baseUrl: candidate,
-          message: 'Invalid server response.',
-          status: 500,
-          triedUrls,
-        });
+      if (isAxiosError(error)) {
+        if (error.response) {
+          const payload = error.response.data;
+          throw new ApiError({
+            baseUrl: candidate,
+            details: getPayloadDetails(payload),
+            errors: payload && typeof payload === 'object' ? (payload as ErrorPayload).errors : undefined,
+            message: extractApiMessage(payload, error.response.status, 'Request failed.'),
+            status: error.response.status,
+            triedUrls,
+          });
+        }
+
+        if (error.code === 'ERR_BAD_RESPONSE') {
+          throw new ApiError({
+            baseUrl: candidate,
+            message: 'Invalid server response.',
+            status: 500,
+            triedUrls,
+          });
+        }
       }
 
       lastError = error;
-    } finally {
-      clearTimeout(timeout);
     }
   }
 
   const networkMessage =
-    lastError instanceof Error && lastError.name === 'AbortError'
+    isAxiosError(lastError) && lastError.code === 'ECONNABORTED'
       ? 'انتهت مهلة الاتصال بالخادم. تأكد من تشغيله ثم حاول مرة أخرى.'
       : 'تعذر الوصول إلى الخادم. شغّل الـ backend أو اضبط EXPO_PUBLIC_API_BASE_URL على العنوان الصحيح.';
 

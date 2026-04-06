@@ -1,35 +1,35 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAdminSession } from '@/contexts/admin-session-context';
-import { colors, typography } from '@/theme';
 
 const profileLinks = [
   {
-    id: 'details',
-    title: 'المعلومات الشخصية',
-    subtitle: 'تعديل الاسم ورقم الجوال والبريد الإلكتروني',
     icon: 'person-outline' as const,
+    id: 'details',
     route: '/admin/profile-details' as const,
+    subtitle: 'تعديل الاسم ورقم الجوال والبريد الإلكتروني',
+    title: 'المعلومات الشخصية',
   },
   {
-    id: 'add-admin',
-    title: 'إضافة أدمن جديد',
-    subtitle: 'إنشاء حساب إداري جديد من داخل لوحة التحكم',
     icon: 'person-add-outline' as const,
+    id: 'add-admin',
     route: '/admin/add-admin' as const,
+    subtitle: 'إنشاء حساب إداري جديد من داخل لوحة التحكم',
+    title: 'إضافة أدمن جديد',
   },
   {
-    id: 'admin-settings',
-    title: 'عرض وإعدادات الأدمن',
-    subtitle: 'عرض جميع الأدمنز الموجودين مع إمكانية حذف الحسابات',
     icon: 'settings-outline' as const,
+    id: 'admin-settings',
     route: '/admin/admin-settings' as const,
+    subtitle: 'عرض جميع الأدمنز الموجودين مع إمكانية حذف الحسابات',
+    title: 'عرض وإعدادات الأدمن',
   },
 ];
 
@@ -39,83 +39,128 @@ export default function AdminProfileScreen() {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    await logout();
-    router.replace('/');
+
+    try {
+      await logout();
+    } finally {
+      router.replace('/');
+    }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-admin-background" edges={['top']}>
       <StatusBar style="light" />
 
-      <View style={styles.screen}>
+      <View className="flex-1 bg-admin-background">
         <LinearGradient
           colors={['rgba(139, 92, 246, 0.18)', 'rgba(139, 92, 246, 0.00)']}
-          start={{ x: 1, y: 0 }}
           end={{ x: 0, y: 1 }}
-          style={styles.topGlow}
+          start={{ x: 1, y: 0 }}
+          style={{
+            borderRadius: 999,
+            height: 220,
+            position: 'absolute',
+            right: -42,
+            top: -30,
+            width: 220,
+          }}
         />
         <LinearGradient
           colors={['rgba(109, 40, 217, 0.18)', 'rgba(109, 40, 217, 0.00)']}
-          start={{ x: 0, y: 1 }}
           end={{ x: 1, y: 0 }}
-          style={styles.bottomGlow}
+          start={{ x: 0, y: 1 }}
+          style={{
+            borderRadius: 999,
+            bottom: 120,
+            height: 260,
+            left: -70,
+            position: 'absolute',
+            width: 260,
+          }}
         />
 
         <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
-          <View style={styles.heroCard}>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoText}>LUMIXY</Text>
-            </View>
+          className="flex-1"
+          contentContainerClassName="gap-4 px-5 pb-7 pt-3.5"
+          showsVerticalScrollIndicator={false}>
+          <View className="rounded-[30px] border border-white/10 bg-admin-panel px-5 py-5">
+            <View className="items-center">
+              <View className="mb-4 h-[92px] w-[92px] items-center justify-center overflow-hidden rounded-[30px] border border-admin-primaryLight/35 bg-[#0E0914]">
+                <Image
+                  contentFit="cover"
+                  source={require('../../../assets/images/icon.png')}
+                  style={{ height: 78, width: 78 }}
+                />
+              </View>
 
-            {adminUser ? (
-              <>
-                <Text style={styles.title}>{adminUser.full_name}</Text>
-                <Text style={styles.subtitle}>
-                  {adminUser.email}
-                  {adminUser.phone ? `\n${adminUser.phone}` : '\nلا يوجد رقم جوال محفوظ حالياً'}
-                </Text>
-              </>
-            ) : (
-              <ActivityIndicator
-                size="large"
-                color={colors.primaryLight}
-                style={styles.loadingIndicator}
-              />
-            )}
+              {adminUser ? (
+                <>
+                  <Text className="text-center font-cairo-bold text-[30px] text-admin-text">
+                    {adminUser.full_name}
+                  </Text>
+                  <Text className="mt-2 text-center font-cairo text-[14px] leading-6 text-admin-muted">
+                    لوحة الإدارة الرئيسية لحسابات Lumixy
+                  </Text>
+                  <View className="mt-5 items-center gap-2">
+                    <Text className="font-cairo text-[15px] text-admin-text">{adminUser.email}</Text>
+                    <Text className="font-cairo text-[15px] text-admin-text">
+                      {adminUser.phone?.trim() || 'لا يوجد رقم جوال محفوظ'}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <ActivityIndicator color="#8B5CF6" size="large" />
+              )}
+            </View>
           </View>
 
-          <View style={styles.linksList}>
+          <View className="gap-3">
             {profileLinks.map((item) => (
               <Pressable
                 key={item.id}
-                style={styles.linkCard}
+                className="min-h-[84px] flex-row-reverse items-center rounded-[24px] border border-white/10 bg-admin-panel px-4"
                 onPress={() => router.push(item.route)}>
-                <Feather name="chevron-left" size={18} color={colors.textMuted} />
-
-                <View style={styles.linkText}>
-                  <Text style={styles.linkTitle}>{item.title}</Text>
-                  <Text style={styles.linkSubtitle}>{item.subtitle}</Text>
+                <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-admin-primaryLight/10">
+                  <Ionicons color="#8B5CF6" name={item.icon} size={18} />
                 </View>
 
-                <View style={styles.iconWrap}>
-                  <Ionicons name={item.icon} size={18} color={colors.primaryLight} />
+                <View className="flex-1 px-3">
+                  <Text className="text-right font-cairo-bold text-[16px] text-admin-text">
+                    {item.title}
+                  </Text>
+                  <Text className="mt-1 text-right font-cairo text-[12px] leading-5 text-admin-muted">
+                    {item.subtitle}
+                  </Text>
                 </View>
+
+                <Feather color="#6B7280" name="chevron-left" size={18} />
               </Pressable>
             ))}
           </View>
 
-          <Pressable onPress={handleLogout} style={styles.logoutCard} disabled={isLoggingOut}>
-            <MaterialCommunityIcons name="logout" size={20} color={colors.error} />
-            <View style={styles.logoutText}>
-              <Text style={styles.logoutTitle}>تسجيل الخروج</Text>
-              <Text style={styles.logoutSubtitle}>إنهاء الجلسة الحالية والعودة للشاشة الرئيسية</Text>
+          <Pressable
+            className="min-h-[84px] flex-row-reverse items-center rounded-[26px] border border-admin-danger/15 bg-[#1A1217] px-4"
+            disabled={isLoggingOut}
+            onPress={() => {
+              void handleLogout();
+            }}>
+            <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-admin-danger/10">
+              <MaterialCommunityIcons color="#EF4444" name="logout" size={20} />
             </View>
+
+            <View className="flex-1 px-3">
+              <Text className="text-right font-cairo-bold text-[17px] text-admin-danger">
+                تسجيل الخروج
+              </Text>
+              <Text className="mt-1 text-right font-cairo text-[12px] leading-5 text-admin-muted">
+                إنهاء الجلسة الحالية والعودة للشاشة الرئيسية
+              </Text>
+            </View>
+
             {isLoggingOut ? (
-              <ActivityIndicator size="small" color={colors.textMuted} />
+              <ActivityIndicator color="#6B7280" size="small" />
             ) : (
-              <Feather name="chevron-left" size={18} color={colors.textMuted} />
+              <Feather color="#6B7280" name="chevron-left" size={18} />
             )}
           </Pressable>
         </ScrollView>
@@ -123,152 +168,3 @@ export default function AdminProfileScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  screen: {
-    flex: 1,
-    backgroundColor: '#09070C',
-  },
-  topGlow: {
-    position: 'absolute',
-    top: -30,
-    right: -42,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-  },
-  bottomGlow: {
-    position: 'absolute',
-    bottom: 120,
-    left: -70,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 28,
-    gap: 16,
-  },
-  heroCard: {
-    borderRadius: 30,
-    padding: 20,
-    backgroundColor: 'rgba(21, 12, 29, 0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logoBox: {
-    width: 92,
-    height: 92,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.34)',
-    backgroundColor: '#0E0914',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primaryLight,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.16,
-    shadowRadius: 22,
-    elevation: 8,
-  },
-  logoText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 20,
-    letterSpacing: 0.7,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 32,
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 14,
-    lineHeight: 24,
-    textAlign: 'center',
-    maxWidth: 290,
-  },
-  loadingIndicator: {
-    marginTop: 18,
-  },
-  linksList: {
-    gap: 12,
-  },
-  linkCard: {
-    minHeight: 82,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(19, 16, 24, 0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  linkText: {
-    flex: 1,
-    alignItems: 'flex-end',
-    paddingHorizontal: 12,
-  },
-  linkTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-    textAlign: 'right',
-  },
-  linkSubtitle: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
-    textAlign: 'right',
-    marginTop: 3,
-  },
-  iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(139, 92, 246, 0.10)',
-  },
-  logoutCard: {
-    minHeight: 80,
-    borderRadius: 26,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(26, 18, 23, 0.98)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.12)',
-  },
-  logoutText: {
-    flex: 1,
-    alignItems: 'flex-end',
-    paddingHorizontal: 14,
-  },
-  logoutTitle: {
-    color: colors.error,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 17,
-  },
-  logoutSubtitle: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
-    marginTop: 2,
-    textAlign: 'right',
-  },
-});

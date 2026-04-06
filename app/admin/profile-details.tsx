@@ -1,125 +1,180 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Controller, useForm } from 'react-hook-form';
 
 import AdminDetailShell from '@/components/admin/admin-detail-shell';
 import StatusBanner from '@/components/ui/status-banner';
 import { useAdminSession } from '@/contexts/admin-session-context';
-import { colors, typography } from '@/theme';
+import { useUpdateAdminProfileMutation } from '@/hooks/admin/use-admin-accounts';
+import { getReadableError } from '@/services/api';
+
+type ProfileFormValues = {
+  email: string;
+  full_name: string;
+  phone: string;
+};
 
 export default function ProfileDetailsScreen() {
-  const { adminUser, updateProfile } = useAdminSession();
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const { adminUser, refreshProfile } = useAdminSession();
+  const updateProfileMutation = useUpdateAdminProfileMutation();
+  const {
+    control,
+    formState: { errors },
+    handleSubmit,
+    reset,
+  } = useForm<ProfileFormValues>({
+    defaultValues: {
+      email: '',
+      full_name: '',
+      phone: '',
+    },
+  });
 
   useEffect(() => {
     if (!adminUser) {
       return;
     }
 
-    setFullName(adminUser.full_name);
-    setPhone(adminUser.phone ?? '');
-    setEmail(adminUser.email);
-  }, [adminUser]);
-
-  const handleSave = async () => {
-    const trimmedName = fullName.trim();
-    const trimmedPhone = phone.trim();
-    const trimmedEmail = email.trim();
-
-    if (!trimmedName || !trimmedEmail) {
-      setErrorMessage('الاسم الكامل والبريد الإلكتروني مطلوبان قبل الحفظ.');
-      return;
-    }
-
-    setErrorMessage(null);
-    setIsSaving(true);
-
-    const result = await updateProfile({
-      full_name: trimmedName,
-      email: trimmedEmail,
-      phone: trimmedPhone,
+    reset({
+      email: adminUser.email,
+      full_name: adminUser.full_name,
+      phone: adminUser.phone ?? '',
     });
+  }, [adminUser, reset]);
 
-    if (result.success) {
-      Alert.alert('تم الحفظ', 'تم تحديث المعلومات الشخصية بنجاح.');
-    } else {
-      setErrorMessage(result.message);
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      const result = await updateProfileMutation.mutateAsync({
+        email: values.email.trim(),
+        full_name: values.full_name.trim(),
+        phone: values.phone.trim(),
+      });
+
+      await refreshProfile();
+      Alert.alert('تم الحفظ', result.message);
+    } catch (error) {
+      Alert.alert('تعذر الحفظ', getReadableError(error));
     }
-
-    setIsSaving(false);
-  };
+  });
 
   return (
     <AdminDetailShell
       badge="الملف الشخصي"
+      notice="أي تعديل هنا ينعكس مباشرة على الحساب الإداري الحالي داخل النظام."
       subtitle="عدّل بيانات الحساب الأساسية واحفظها مباشرة"
       title="المعلومات الشخصية">
-      <View style={styles.card}>
-        {errorMessage ? <StatusBanner message={errorMessage} tone="error" /> : null}
+      <View className="gap-4 rounded-[28px] border border-white/10 bg-admin-panel p-4.5">
+        {updateProfileMutation.isError ? (
+          <StatusBanner message={getReadableError(updateProfileMutation.error)} tone="error" />
+        ) : null}
 
-        <View style={styles.fieldBlock}>
-          <Text style={styles.label}>الاسم الكامل</Text>
-          <TextInput
-            value={fullName}
-            onChangeText={setFullName}
-            style={styles.input}
-            textAlign="right"
-            placeholder="أدخل الاسم الكامل"
-            placeholderTextColor={colors.textMuted}
+        <View className="gap-2">
+          <Text className="text-right font-cairo-bold text-[14px] text-admin-text">
+            الاسم الكامل
+          </Text>
+          <Controller
+            control={control}
+            name="full_name"
+            rules={{ required: 'الاسم الكامل مطلوب.' }}
+            render={({ field: { onBlur, onChange, value } }) => (
+              <TextInput
+                className="min-h-[54px] rounded-[18px] border border-white/10 bg-white/5 px-4 text-right font-cairo text-[15px] text-admin-text"
+                onBlur={onBlur}
+                onChangeText={onChange}
+                placeholder="أدخل الاسم الكامل"
+                placeholderTextColor="#6B7280"
+                value={value}
+              />
+            )}
+          />
+          {errors.full_name ? <StatusBanner message={errors.full_name.message ?? ''} tone="warning" /> : null}
+        </View>
+
+        <View className="gap-2">
+          <Text className="text-right font-cairo-bold text-[14px] text-admin-text">رقم الجوال</Text>
+          <Controller
+            control={control}
+            name="phone"
+            render={({ field: { onBlur, onChange, value } }) => (
+              <TextInput
+                className="min-h-[54px] rounded-[18px] border border-white/10 bg-white/5 px-4 text-right font-cairo text-[15px] text-admin-text"
+                keyboardType="phone-pad"
+                onBlur={onBlur}
+                onChangeText={onChange}
+                placeholder="+97059XXXXXXX"
+                placeholderTextColor="#6B7280"
+                value={value}
+              />
+            )}
           />
         </View>
 
-        <View style={styles.fieldBlock}>
-          <Text style={styles.label}>رقم الجوال</Text>
-          <TextInput
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            style={styles.input}
-            textAlign="right"
-            placeholder="+97059XXXXXXX"
-            placeholderTextColor={colors.textMuted}
+        <View className="gap-2">
+          <Text className="text-right font-cairo-bold text-[14px] text-admin-text">
+            البريد الإلكتروني
+          </Text>
+          <Controller
+            control={control}
+            name="email"
+            rules={{
+              pattern: {
+                message: 'أدخل بريداً إلكترونياً صحيحاً.',
+                value: /\S+@\S+\.\S+/,
+              },
+              required: 'البريد الإلكتروني مطلوب.',
+            }}
+            render={({ field: { onBlur, onChange, value } }) => (
+              <TextInput
+                autoCapitalize="none"
+                className="min-h-[54px] rounded-[18px] border border-white/10 bg-white/5 px-4 text-right font-cairo text-[15px] text-admin-text"
+                keyboardType="email-address"
+                onBlur={onBlur}
+                onChangeText={onChange}
+                placeholder="admin@lumixy.app"
+                placeholderTextColor="#6B7280"
+                value={value}
+              />
+            )}
           />
-        </View>
-
-        <View style={styles.fieldBlock}>
-          <Text style={styles.label}>البريد الإلكتروني</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            style={styles.input}
-            textAlign="right"
-            placeholder="admin@lumixy.app"
-            placeholderTextColor={colors.textMuted}
-          />
+          {errors.email ? <StatusBanner message={errors.email.message ?? ''} tone="warning" /> : null}
         </View>
 
         <LinearGradient
           colors={['rgba(139, 92, 246, 0.18)', 'rgba(109, 40, 217, 0.10)']}
-          start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
-          <Text style={styles.infoText}>تأكد من صحة البيانات قبل الحفظ حتى تظهر بشكل صحيح داخل الحساب.</Text>
+          start={{ x: 0, y: 0 }}
+          style={{
+            alignItems: 'center',
+            borderRadius: 18,
+            flexDirection: 'row-reverse',
+            gap: 10,
+            minHeight: 54,
+            paddingHorizontal: 16,
+          }}>
+          <Ionicons color="#A78BFA" name="information-circle-outline" size={18} />
+          <Text className="flex-1 text-right font-cairo text-[13px] leading-5 text-admin-muted">
+            تأكد من صحة البيانات قبل الحفظ حتى تظهر بشكل صحيح داخل الحساب.
+          </Text>
         </LinearGradient>
 
-        <Pressable onPress={handleSave} disabled={isSaving}>
+        <Pressable disabled={updateProfileMutation.isPending} onPress={() => void onSubmit()}>
           <LinearGradient
-            colors={[colors.primaryLight, colors.primary]}
-            start={{ x: 0, y: 0 }}
+            colors={['#8B5CF6', '#6D28D9']}
             end={{ x: 1, y: 1 }}
-            style={[styles.primaryButton, isSaving && styles.disabledButton]}>
-            {isSaving ? (
-              <ActivityIndicator color={colors.text} />
+            start={{ x: 0, y: 0 }}
+            style={{
+              alignItems: 'center',
+              borderRadius: 20,
+              justifyContent: 'center',
+              minHeight: 56,
+              opacity: updateProfileMutation.isPending ? 0.76 : 1,
+            }}>
+            {updateProfileMutation.isPending ? (
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryButtonText}>حفظ التغييرات</Text>
+              <Text className="font-cairo-bold text-[16px] text-admin-text">حفظ التغييرات</Text>
             )}
           </LinearGradient>
         </Pressable>
@@ -127,65 +182,3 @@ export default function ProfileDetailsScreen() {
     </AdminDetailShell>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 28,
-    padding: 18,
-    backgroundColor: 'rgba(19, 16, 24, 0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    gap: 14,
-  },
-  fieldBlock: {
-    gap: 8,
-  },
-  label: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.semiBold,
-    fontSize: 14,
-    textAlign: 'right',
-  },
-  input: {
-    minHeight: 54,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    color: colors.text,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    fontFamily: typography.fontFamily.regular,
-  },
-  infoBox: {
-    minHeight: 54,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 10,
-  },
-  infoText: {
-    flex: 1,
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: 'right',
-  },
-  primaryButton: {
-    minHeight: 56,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  disabledButton: {
-    opacity: 0.76,
-  },
-  primaryButtonText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-  },
-});

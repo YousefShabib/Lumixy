@@ -39,6 +39,7 @@ export type AdminProviderRecord = {
   custom_services?: string[] | null;
   id: string;
   provider_name?: string | null;
+  profile_image?: string | null;
   user?: {
     email: string;
     full_name: string;

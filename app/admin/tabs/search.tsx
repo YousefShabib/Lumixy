@@ -1,54 +1,28 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import StatusBanner from '@/components/ui/status-banner';
 import { useAdminSession } from '@/contexts/admin-session-context';
 import {
-  approveProvider,
-  deleteProvider,
-  fetchAdminPendingProviders,
-  fetchAdminProviders,
-  rejectProvider,
-  suspendProvider,
-  type AdminProviderApplication,
-  type AdminProviderRecord,
-} from '@/services/admin-api';
+  filterProviderItems,
+  mapProvider,
+  useAdminProvidersQuery,
+  useApproveProviderMutation,
+  useDeleteProviderMutation,
+  useRejectProviderMutation,
+  useSuspendProviderMutation,
+  type ProviderItem,
+  type ProviderTone,
+  type StatusFilter,
+} from '@/hooks/admin/use-admin-providers';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 import { ApiError, getReadableError } from '@/services/api';
-import { colors, typography } from '@/theme';
-
-type ProviderStatus = 'approved' | 'pending' | 'rejected';
-type ProviderTone = ProviderStatus | 'none' | 'suspended';
-type StatusFilter = 'all' | ProviderStatus;
-
-type ProviderItem = {
-  avatarGradient: [string, string];
-  avatarIcon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-  badgeLabel: string;
-  city: string;
-  filterStatus: ProviderStatus | null;
-  hasApplication: boolean;
-  id: string;
-  isActiveProvider: boolean;
-  isAwaitingApproval: boolean;
-  name: string;
-  note: string | null;
-  specialty: string;
-  tone: ProviderTone;
-};
 
 const statusFilters: { key: StatusFilter; label: string }[] = [
   { key: 'all', label: 'الكل' },
@@ -60,477 +34,362 @@ const statusFilters: { key: StatusFilter; label: string }[] = [
 const statusMeta: Record<
   ProviderTone,
   {
-    bg: string;
-    border: string;
+    badgeClassName: string;
     color: string;
   }
 > = {
   approved: {
+    badgeClassName: 'border-[#58D29B]/20 bg-[#265E43]/25',
     color: '#58D29B',
-    bg: 'rgba(38, 94, 67, 0.26)',
-    border: 'rgba(88, 210, 155, 0.18)',
-  },
-  pending: {
-    color: '#F59E0B',
-    bg: 'rgba(117, 66, 18, 0.24)',
-    border: 'rgba(245, 158, 11, 0.18)',
   },
   none: {
+    badgeClassName: 'border-[#A1A1AA]/15 bg-[#52525B]/20',
     color: '#A1A1AA',
-    bg: 'rgba(82, 82, 91, 0.22)',
-    border: 'rgba(161, 161, 170, 0.14)',
+  },
+  pending: {
+    badgeClassName: 'border-[#F59E0B]/20 bg-[#754212]/25',
+    color: '#F59E0B',
   },
   rejected: {
+    badgeClassName: 'border-[#F87171]/15 bg-[#702323]/25',
     color: '#F87171',
-    bg: 'rgba(112, 35, 35, 0.24)',
-    border: 'rgba(248, 113, 113, 0.16)',
   },
   suspended: {
+    badgeClassName: 'border-[#F97316]/15 bg-[#7C3C0C]/25',
     color: '#F97316',
-    bg: 'rgba(124, 60, 12, 0.24)',
-    border: 'rgba(249, 115, 22, 0.16)',
   },
 };
 
-function getLatestApplication(applications?: AdminProviderApplication[]) {
-  if (!applications || applications.length === 0) {
-    return null;
-  }
-
-  return [...applications].sort((first, second) => {
-    const firstDate = new Date(first.submitted_at ?? first.created_at ?? 0).getTime();
-    const secondDate = new Date(second.submitted_at ?? second.created_at ?? 0).getTime();
-    return secondDate - firstDate;
-  })[0];
-}
-
-function resolveProviderVisual(name: string, specialty: string) {
-  const subject = `${name} ${specialty}`;
-
-  if (subject.includes('تصوير') || subject.includes('ستوديو')) {
-    return {
-      avatarIcon: 'camera-outline' as const,
-      avatarGradient: ['#6D28D9', '#2E1065'] as [string, string],
-    };
-  }
-
-  if (subject.includes('تقنية') || subject.includes('معلومات') || subject.includes('برمجة')) {
-    return {
-      avatarIcon: 'office-building-outline' as const,
-      avatarGradient: ['#FFFFFF', '#D7D7D7'] as [string, string],
-    };
-  }
-
-  if (subject.includes('تصميم') || subject.includes('إعلام') || subject.includes('حفلات')) {
-    return {
-      avatarIcon: 'party-popper' as const,
-      avatarGradient: ['#2B5BC9', '#162D66'] as [string, string],
-    };
-  }
-
-  return {
-    avatarIcon: 'storefront-outline' as const,
-    avatarGradient: ['#F4B183', '#C97D52'] as [string, string],
-  };
-}
-
-function mapProvider(record: AdminProviderRecord): ProviderItem {
-  const latestApplication = getLatestApplication(record.applications);
-  const rawStatus = latestApplication?.application_status ?? null;
-  const isActiveProvider = !latestApplication && record.user?.status === 'active';
-  const isAwaitingApproval =
-    rawStatus === 'pending' || (!latestApplication && record.user?.status === 'inactive');
-  const isSuspended = rawStatus === 'approved' && record.user?.status === 'inactive';
-  const specialty =
-    record.category?.name ?? record.custom_services?.[0] ?? 'خدمات غير مصنفة حتى الآن';
-  const name = record.provider_name ?? record.user?.full_name ?? 'مزود بدون اسم';
-  const visual = resolveProviderVisual(name, specialty);
-  let tone: ProviderTone = 'none';
-
-  if (isAwaitingApproval) {
-    tone = 'pending';
-  } else if (isActiveProvider) {
-    tone = 'approved';
-  } else if (latestApplication) {
-    tone = isSuspended ? 'suspended' : latestApplication.application_status;
-  }
-
-  return {
-    id: record.id,
-    name,
-    city: record.city?.trim() || 'المدينة غير محددة',
-    specialty,
-    hasApplication: Boolean(latestApplication),
-    filterStatus: isAwaitingApproval ? 'pending' : isActiveProvider ? 'approved' : rawStatus,
-    isActiveProvider,
-    isAwaitingApproval,
-    tone,
-    badgeLabel:
-      isAwaitingApproval
-        ? 'قيد الانتظار'
-        : isActiveProvider
-        ? 'نشط'
-        : rawStatus === 'approved'
-        ? isSuspended
-          ? 'موقوف'
-          : 'نشط'
-        : rawStatus === 'rejected'
-          ? 'مرفوض'
-          : 'بدون طلب',
-    note: latestApplication?.notes?.trim() || null,
-    ...visual,
-  };
-}
-
 export default function ProvidersScreen() {
-  const { logout } = useAdminSession();
+  const pathname = usePathname();
   const { categoryId, categoryName } = useLocalSearchParams<{
     categoryId?: string;
     categoryName?: string;
   }>();
-  const pathname = usePathname();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [providers, setProviders] = useState<AdminProviderRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [busyProviderId, setBusyProviderId] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
+  const { logout } = useAdminSession();
   const isCategoryView = pathname.includes('/admin/category-providers');
+  const searchStorageKey = isCategoryView
+    ? `admin:providers:${categoryId ?? 'all'}:search`
+    : 'admin:providers:search';
+  const statusStorageKey = isCategoryView
+    ? `admin:providers:${categoryId ?? 'all'}:status`
+    : 'admin:providers:status';
+  const [searchQuery, setSearchQuery, isSearchHydrated] = usePersistedState(searchStorageKey, '');
+  const [statusFilter, setStatusFilter, isStatusHydrated] = usePersistedState<StatusFilter>(
+    statusStorageKey,
+    'all'
+  );
+  const providersQuery = useAdminProvidersQuery(
+    isCategoryView && typeof categoryId === 'string' ? categoryId : undefined
+  );
+  const approveMutation = useApproveProviderMutation();
+  const rejectMutation = useRejectProviderMutation();
+  const suspendMutation = useSuspendProviderMutation();
+  const deleteMutation = useDeleteProviderMutation();
+
   const resolvedCategoryName =
     typeof categoryName === 'string' && categoryName.trim().length > 0
       ? categoryName
       : 'هذا القطاع';
 
-  const handleUnauthorized = useCallback(
-    async (error: unknown) => {
-      if (
-        error instanceof ApiError &&
-        (error.status === 401 || error.status === 403)
-      ) {
-        console.error('انتهت صلاحية الوصول إلى صفحة المزودين:', error);
-        await logout();
-        router.replace('/auth/login');
-        return true;
-      }
-
-      return false;
-    },
-    [logout]
+  const providerItems = useMemo(
+    () => (providersQuery.data ?? []).map(mapProvider),
+    [providersQuery.data]
   );
 
-  const loadProviders = useCallback(
-    async ({ quiet = false }: { quiet?: boolean } = {}) => {
-      if (!quiet) {
-        setIsLoading(true);
-      }
-
-      setErrorMessage(null);
-
-      try {
-        const [response, pendingResponse] = await Promise.all([
-          fetchAdminProviders(),
-          fetchAdminPendingProviders(),
-        ]);
-        const pendingProvidersById = new Map(
-          pendingResponse.data.map((provider) => [provider.id, provider])
-        );
-        const mergedProviders = response.data.data.map((provider) => {
-          const pendingProvider = pendingProvidersById.get(provider.id);
-
-          if (!pendingProvider) {
-            return provider;
-          }
-
-          const hasApplications =
-            Array.isArray(provider.applications) && provider.applications.length > 0;
-
-          return hasApplications
-            ? provider
-            : {
-                ...provider,
-                applications: pendingProvider.applications,
-              };
-        });
-        const nextProviders =
-          isCategoryView && typeof categoryId === 'string'
-            ? mergedProviders.filter((provider) => provider.category?.id === categoryId)
-            : mergedProviders;
-
-        setProviders(nextProviders);
-      } catch (error) {
-        console.error('فشل تحميل المزودين:', error);
-
-        if (await handleUnauthorized(error)) {
-          return;
-        }
-
-        setErrorMessage(getReadableError(error));
-      } finally {
-        if (!quiet) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [categoryId, handleUnauthorized, isCategoryView]
+  const filteredProviders = useMemo(
+    () => filterProviderItems(providerItems, searchQuery, statusFilter),
+    [providerItems, searchQuery, statusFilter]
   );
 
-  useEffect(() => {
-    void loadProviders();
-  }, [loadProviders]);
-
-  const providerItems = useMemo(() => providers.map(mapProvider), [providers]);
-
-  const providerSummaryCards = useMemo(() => {
+  const summaryCards = useMemo(() => {
     const totalCount = providerItems.length;
     const activeCount = providerItems.filter((provider) => provider.tone === 'approved').length;
     const inactiveCount = totalCount - activeCount;
 
     return [
       {
+        borderClassName: 'border-admin-accent/20',
+        icon: 'people-outline' as const,
+        iconBgClassName: 'bg-admin-accent/15',
+        iconColor: '#A78BFA',
         key: 'total',
         label: isCategoryView ? 'مزودو القطاع' : 'إجمالي المزودين',
         value: totalCount,
-        icon: 'people-outline' as const,
-        iconColor: '#A78BFA',
-        iconBg: 'rgba(167, 139, 250, 0.16)',
-        borderColor: 'rgba(167, 139, 250, 0.18)',
       },
       {
+        borderClassName: 'border-admin-success/20',
+        icon: 'checkmark-circle-outline' as const,
+        iconBgClassName: 'bg-admin-success/15',
+        iconColor: '#58D29B',
         key: 'active',
         label: 'نشط',
         value: activeCount,
-        icon: 'checkmark-circle-outline' as const,
-        iconColor: '#58D29B',
-        iconBg: 'rgba(88, 210, 155, 0.14)',
-        borderColor: 'rgba(88, 210, 155, 0.16)',
       },
       {
+        borderClassName: 'border-admin-warning/20',
+        icon: 'pause-circle-outline' as const,
+        iconBgClassName: 'bg-admin-warning/15',
+        iconColor: '#F59E0B',
         key: 'inactive',
         label: 'غير نشط',
         value: inactiveCount,
-        icon: 'pause-circle-outline' as const,
-        iconColor: '#F59E0B',
-        iconBg: 'rgba(245, 158, 11, 0.14)',
-        borderColor: 'rgba(245, 158, 11, 0.16)',
       },
     ];
   }, [isCategoryView, providerItems]);
 
-  const filteredProviders = useMemo(() => {
-    return providerItems.filter((provider) => {
-      const matchesStatus = statusFilter === 'all' || provider.filterStatus === statusFilter;
-      const searchableText = `${provider.name} ${provider.city} ${provider.specialty} ${provider.note ?? ''}`.toLowerCase();
-      const matchesSearch =
-        searchQuery.trim().length === 0 || searchableText.includes(searchQuery.trim().toLowerCase());
+  const activeError =
+    approveMutation.error ??
+    rejectMutation.error ??
+    suspendMutation.error ??
+    deleteMutation.error ??
+    providersQuery.error ??
+    null;
 
-      return matchesStatus && matchesSearch;
-    });
-  }, [providerItems, searchQuery, statusFilter]);
+  useEffect(() => {
+    if (!(activeError instanceof ApiError)) {
+      return;
+    }
 
-  const runProviderAction = useCallback(
-    async ({
-      providerId,
-      request,
-      successMessage,
-      logLabel,
-    }: {
-      logLabel: string;
-      providerId: string;
-      request: () => Promise<unknown>;
-      successMessage: string;
-    }) => {
-      setBusyProviderId(providerId);
-      setErrorMessage(null);
+    if (activeError.status !== 401 && activeError.status !== 403) {
+      return;
+    }
 
-      try {
-        await request();
-        Alert.alert('تمت العملية', successMessage);
-        await loadProviders({ quiet: true });
-      } catch (error) {
-        console.error(`فشل تنفيذ العملية: ${logLabel}`, error);
+    void (async () => {
+      await logout();
+      router.replace('/auth/login');
+    })();
+  }, [activeError, logout]);
 
-        if (await handleUnauthorized(error)) {
-          return;
-        }
+  useEffect(() => {
+    if (!isCategoryView || !isSearchHydrated || !isStatusHydrated) {
+      return;
+    }
 
-        setErrorMessage(getReadableError(error));
-      } finally {
-        setBusyProviderId(null);
-      }
-    },
-    [handleUnauthorized, loadProviders]
-  );
+    setSearchQuery('');
+    setStatusFilter('all');
+  }, [
+    categoryId,
+    isCategoryView,
+    isSearchHydrated,
+    isStatusHydrated,
+    setSearchQuery,
+    setStatusFilter,
+  ]);
+
+  const isBusyForProvider = (providerId: string) =>
+    (approveMutation.isPending && approveMutation.variables === providerId) ||
+    (deleteMutation.isPending && deleteMutation.variables === providerId) ||
+    (rejectMutation.isPending && rejectMutation.variables?.providerId === providerId) ||
+    (suspendMutation.isPending && suspendMutation.variables?.providerId === providerId);
+
+  const runProviderAction = async (
+    action: () => Promise<unknown>,
+    successMessage: string,
+    failureTitle: string
+  ) => {
+    try {
+      await action();
+      Alert.alert('تمت العملية', successMessage);
+    } catch (error) {
+      Alert.alert(failureTitle, getReadableError(error));
+    }
+  };
 
   const handleApprove = async (provider: ProviderItem) => {
-    await runProviderAction({
-      providerId: provider.id,
-      logLabel: 'الموافقة على المزود',
-      request: () => approveProvider(provider.id),
-      successMessage: `تمت الموافقة على ${provider.name} بنجاح.`,
-    });
-  };
-
-  const handleReject = async (provider: ProviderItem) => {
-    await runProviderAction({
-      providerId: provider.id,
-      logLabel: 'رفض المزود',
-      request: () => rejectProvider(provider.id, 'تم رفض الطلب من لوحة الإدارة.'),
-      successMessage: `تم رفض ${provider.name} بنجاح.`,
-    });
-  };
-
-  const handleSuspend = async (provider: ProviderItem) => {
-    await runProviderAction({
-      providerId: provider.id,
-      logLabel: 'تعليق حساب المزود',
-      request: () => suspendProvider(provider.id, 'تم تعليق الحساب من لوحة الإدارة.'),
-      successMessage: `تم تعليق حساب ${provider.name} بنجاح.`,
-    });
-  };
-
-  const handleDelete = (provider: ProviderItem) => {
-    Alert.alert(
-      'حذف المزود',
-      `هل تريد حذف ${provider.name} نهائياً من النظام؟`,
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'حذف',
-          style: 'destructive',
-          onPress: () => {
-            void runProviderAction({
-              providerId: provider.id,
-              logLabel: 'حذف المزود',
-              request: () => deleteProvider(provider.id),
-              successMessage: `تم حذف ${provider.name} نهائياً من النظام.`,
-            });
-          },
-        },
-      ]
+    await runProviderAction(
+      () => approveMutation.mutateAsync(provider.id),
+      `تمت الموافقة على ${provider.name} بنجاح.`,
+      'تعذر تنفيذ الموافقة'
     );
   };
 
-  const isEmpty = !isLoading && filteredProviders.length === 0;
+  const handleReject = async (provider: ProviderItem) => {
+    await runProviderAction(
+      () =>
+        rejectMutation.mutateAsync({
+          providerId: provider.id,
+          reason: 'تم رفض الطلب من لوحة الإدارة.',
+        }),
+      `تم رفض ${provider.name} بنجاح.`,
+      'تعذر تنفيذ الرفض'
+    );
+  };
+
+  const handleSuspend = async (provider: ProviderItem) => {
+    await runProviderAction(
+      () =>
+        suspendMutation.mutateAsync({
+          providerId: provider.id,
+          reason: 'تم تعليق الحساب من لوحة الإدارة.',
+        }),
+      `تم تعليق حساب ${provider.name} بنجاح.`,
+      'تعذر تنفيذ التعليق'
+    );
+  };
+
+  const handleDelete = (provider: ProviderItem) => {
+    Alert.alert('حذف المزود', `هل تريد حذف ${provider.name} نهائياً من النظام؟`, [
+      { text: 'إلغاء', style: 'cancel' },
+      {
+        text: 'حذف',
+        style: 'destructive',
+        onPress: () => {
+          void runProviderAction(
+            () => deleteMutation.mutateAsync(provider.id),
+            `تم حذف ${provider.name} نهائياً من النظام.`,
+            'تعذر تنفيذ الحذف'
+          );
+        },
+      },
+    ]);
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-admin-background" edges={['top']}>
       <StatusBar style="light" />
 
-      <View style={styles.screen}>
+      <View className="flex-1 bg-admin-background">
         <LinearGradient
           colors={['rgba(167, 139, 250, 0.16)', 'rgba(167, 139, 250, 0)']}
-          start={{ x: 1, y: 0 }}
           end={{ x: 0, y: 1 }}
-          style={styles.topGlow}
+          start={{ x: 1, y: 0 }}
+          style={{
+            borderRadius: 999,
+            height: 220,
+            position: 'absolute',
+            right: -42,
+            top: -40,
+            width: 220,
+          }}
         />
         <LinearGradient
           colors={['rgba(109, 40, 217, 0.18)', 'rgba(109, 40, 217, 0)']}
-          start={{ x: 0, y: 1 }}
           end={{ x: 1, y: 0 }}
-          style={styles.bottomGlow}
+          start={{ x: 0, y: 1 }}
+          style={{
+            borderRadius: 999,
+            bottom: 120,
+            height: 260,
+            left: -80,
+            position: 'absolute',
+            width: 260,
+          }}
         />
 
         <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
+          className="flex-1"
+          contentContainerClassName="gap-3.5 px-5 pb-6 pt-3"
+          showsVerticalScrollIndicator={false}>
           {isCategoryView ? (
-            <View style={styles.headerDetailRow}>
+            <View className="flex-row-reverse items-center gap-3">
               <Pressable
-                onPress={() => router.replace('/admin/tabs')}
-                style={styles.backButton}>
-                <Ionicons name="arrow-forward" size={20} color={colors.text} />
+                className="h-[42px] w-[42px] items-center justify-center rounded-full border border-white/10 bg-white/5"
+                onPress={() => router.replace('/admin/tabs')}>
+                <Ionicons color="#FFFFFF" name="arrow-forward" size={20} />
               </Pressable>
 
-              <View style={styles.headerText}>
-                <Text style={styles.headerTitle}>{resolvedCategoryName}</Text>
-                <Text style={styles.headerSubtitle}>إدارة مزودي هذا المجال</Text>
+              <View className="flex-1 items-center px-2">
+                <Text className="text-center font-cairo-bold text-[20px] text-admin-text">
+                  {`مزودو ${resolvedCategoryName}`}
+                </Text>
+                <Text className="mt-0.5 text-center font-cairo text-[12px] text-admin-muted">
+                  إدارة مزودي هذا المجال
+                </Text>
               </View>
 
-              <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>قطاع</Text>
+              <View className="min-w-[42px] items-center justify-center rounded-full border border-admin-accent/20 bg-admin-primaryLight/10 px-3 py-2">
+                <Text className="font-cairo-bold text-[12px] text-admin-accent">قطاع</Text>
               </View>
             </View>
           ) : (
-            <View style={styles.headerRow}>
-              <View style={styles.brandWrapper}>
-                <Text style={styles.brandText}>LUMIXY</Text>
-              </View>
+            <View className="items-center border-b border-white/5 pb-3.5">
+              <Text className="font-cairo-bold text-[22px] tracking-[0.3px] text-admin-text">
+                LUMIXY
+              </Text>
             </View>
           )}
 
-          <View style={styles.hero}>
-            <Text style={styles.title}>
-              {isCategoryView ? `مزودو ${resolvedCategoryName}` : 'إدارة المزودين'}
-            </Text>
-            <Text style={styles.subtitle}>
-              {isCategoryView
-                ? 'إدارة الحسابات المرتبطة بهذا المجال فقط'
-                : 'مراجعة واعتماد مزودي الخدمات الجدد وإدارة حساباتهم'}
-            </Text>
-          </View>
+          {!isCategoryView ? (
+            <View className="items-end pt-3">
+              <Text className="text-right font-cairo-bold text-[28px] leading-[40px] text-admin-text">
+                إدارة المزودين
+              </Text>
+              <Text className="mt-1 text-right font-cairo text-[13px] text-admin-muted">
+                مراجعة واعتماد مزودي الخدمات الجدد وإدارة حساباتهم
+              </Text>
+            </View>
+          ) : null}
 
-          {errorMessage ? (
+          {activeError ? (
             <StatusBanner
-              message={errorMessage}
-              tone="error"
               actionLabel="إعادة المحاولة"
+              message={getReadableError(activeError)}
               onAction={() => {
-                void loadProviders();
+                void providersQuery.refetch();
               }}
+              tone="error"
             />
           ) : null}
 
-          <View style={styles.summaryRow}>
-            {providerSummaryCards.map((card) => (
+          <View className="flex-row-reverse gap-2.5">
+            {summaryCards.map((card) => (
               <View
                 key={card.key}
-                style={[styles.summaryCard, { borderColor: card.borderColor }]}>
-                <View style={[styles.summaryIconWrap, { backgroundColor: card.iconBg }]}>
-                  <Ionicons name={card.icon} size={18} color={card.iconColor} />
+                className={`min-h-[96px] flex-1 items-center justify-center rounded-[22px] border bg-white/5 px-3 py-3.5 ${card.borderClassName}`}>
+                <View className={`mb-2.5 h-[38px] w-[38px] items-center justify-center rounded-full ${card.iconBgClassName}`}>
+                  <Ionicons color={card.iconColor} name={card.icon} size={18} />
                 </View>
-                <Text style={styles.summaryValue}>{card.value}</Text>
-                <Text style={styles.summaryLabel}>{card.label}</Text>
+                <Text className="text-center font-cairo-bold text-[24px] text-admin-text">
+                  {card.value}
+                </Text>
+                <Text className="mt-1 text-center font-cairo text-[12px] text-admin-muted">
+                  {card.label}
+                </Text>
               </View>
             ))}
           </View>
 
-          <View style={styles.searchBar}>
+          <View className="min-h-[56px] flex-row items-center gap-3 rounded-full border border-white/5 bg-white/5 px-4.5">
             <TextInput
-              value={searchQuery}
+              className="flex-1 text-right font-cairo text-[15px] text-admin-text"
               onChangeText={setSearchQuery}
               placeholder={
-                isCategoryView
-                  ? `ابحث داخل ${resolvedCategoryName}...`
-                  : 'ابحث بالاسم أو الفئة...'
+                isCategoryView ? `ابحث داخل ${resolvedCategoryName}...` : 'ابحث بالاسم أو الفئة...'
               }
-              placeholderTextColor={colors.textMuted}
-              style={styles.searchInput}
-              textAlign="right"
+              placeholderTextColor="#6B7280"
+              value={searchQuery}
             />
-            <Feather name="search" size={20} color={colors.textMuted} />
+            <Feather color="#6B7280" name="search" size={20} />
           </View>
 
-          <View style={styles.filtersRow}>
+          <View className="w-full flex-row-reverse flex-wrap justify-start gap-2.5 self-end">
             {statusFilters.map((filter) => {
               const active = statusFilter === filter.key;
 
               return (
-                <Pressable
-                  key={filter.key}
-                  style={styles.filterPressable}
-                  onPress={() => setStatusFilter(filter.key)}>
+                <Pressable key={filter.key} onPress={() => setStatusFilter(filter.key)}>
                   {active ? (
                     <LinearGradient
-                      colors={[colors.primaryLight, colors.primary]}
-                      start={{ x: 0, y: 0 }}
+                      colors={['#8B5CF6', '#6D28D9']}
                       end={{ x: 1, y: 1 }}
-                      style={styles.activeFilter}>
-                      <Text style={styles.activeFilterText}>{filter.label}</Text>
+                      start={{ x: 0, y: 0 }}
+                      style={{
+                        alignItems: 'center',
+                        borderRadius: 999,
+                        justifyContent: 'center',
+                        minHeight: 40,
+                        paddingHorizontal: 20,
+                      }}>
+                      <Text className="font-cairo-bold text-[12px] text-admin-text">
+                        {filter.label}
+                      </Text>
                     </LinearGradient>
                   ) : (
-                    <View style={styles.filterChip}>
-                      <Text style={styles.filterChipText}>{filter.label}</Text>
+                    <View className="min-h-[40px] items-center justify-center rounded-full border border-white/10 bg-white/5 px-5">
+                      <Text className="font-cairo-bold text-[12px] text-white/80">
+                        {filter.label}
+                      </Text>
                     </View>
                   )}
                 </Pressable>
@@ -538,645 +397,265 @@ export default function ProvidersScreen() {
             })}
           </View>
 
-          <View style={styles.cardsList}>
-            {isLoading ? (
-              <View style={styles.loadingState}>
-                <ActivityIndicator size="large" color={colors.primaryLight} />
-                <Text style={styles.loadingText}>
+          <View className="gap-3.5">
+            {providersQuery.isLoading ? (
+              <View className="items-center justify-center gap-3 rounded-[24px] border border-white/10 bg-white/3 px-4.5 py-10">
+                <ActivityIndicator color="#8B5CF6" size="large" />
+                <Text className="text-center font-cairo text-[14px] text-admin-muted">
                   {isCategoryView ? 'جار تحميل مزودي هذا القطاع...' : 'جار تحميل المزودين...'}
                 </Text>
               </View>
-            ) : null}
-
-            {!isLoading
-              ? filteredProviders.map((provider) => {
-                  const providerStatus = statusMeta[provider.tone];
-                  const isBusy = busyProviderId === provider.id;
-
-                  return (
-                    <View key={provider.id} style={styles.providerCard}>
-                      <View style={styles.providerHeader}>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor: providerStatus.bg,
-                              borderColor: providerStatus.border,
-                            },
-                          ]}>
-                          <Text style={[styles.statusBadgeText, { color: providerStatus.color }]}>
-                            {provider.badgeLabel}
-                          </Text>
-                        </View>
-
-                        <View style={styles.providerIdentity}>
-                          <View style={styles.providerText}>
-                            <Text style={styles.providerName}>{provider.name}</Text>
-                            <View style={styles.locationRow}>
-                              <Feather name="map-pin" size={12} color={colors.textSecondary} />
-                              <Text style={styles.providerLocation}>{provider.city}</Text>
-                            </View>
-                          </View>
-
-                          <LinearGradient
-                            colors={provider.avatarGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.providerAvatar}>
-                            <MaterialCommunityIcons
-                              name={provider.avatarIcon}
-                              size={24}
-                              color={
-                                provider.tone === 'approved'
-                                  ? '#8A8A8A'
-                                  : provider.tone === 'rejected'
-                                    ? '#451A1A'
-                                    : provider.tone === 'none'
-                                      ? '#D4D4D8'
-                                    : '#FFFFFF'
-                              }
-                            />
-                          </LinearGradient>
-                        </View>
-                      </View>
-
-                      <View style={styles.cardDivider} />
-
-                      {provider.note ? (
-                        <View style={styles.noteWrap}>
-                          <Ionicons
-                            name="alert-circle-outline"
-                            size={14}
-                            color={provider.tone === 'rejected' ? colors.error : colors.warning}
-                          />
-                          <Text style={styles.noteText}>{provider.note}</Text>
-                        </View>
-                      ) : null}
-
-                      <View style={styles.providerFooter}>
-                        <View style={styles.actionsRow}>
-                          {!provider.hasApplication &&
-                          !provider.isAwaitingApproval &&
-                          !provider.isActiveProvider ? (
-                            <View style={styles.noApplicationBadge}>
-                              <Text style={styles.noApplicationText}>لا يوجد طلب اعتماد</Text>
-                            </View>
-                          ) : !provider.hasApplication && provider.isAwaitingApproval ? (
-                            <>
-                              <Pressable
-                                style={[styles.iconAction, styles.rejectButton]}
-                                onPress={() => {
-                                  void handleReject(provider);
-                                }}
-                                disabled={isBusy}>
-                                {isBusy ? (
-                                  <ActivityIndicator size="small" color={colors.error} />
-                                ) : (
-                                  <Feather name="trash-2" size={18} color={colors.error} />
-                                )}
-                              </Pressable>
-
-                              <Pressable
-                                onPress={() => {
-                                  void handleApprove(provider);
-                                }}
-                                disabled={isBusy}>
-                                <LinearGradient
-                                  colors={['#78DBA9', '#59C98F']}
-                                  start={{ x: 0, y: 0 }}
-                                  end={{ x: 1, y: 1 }}
-                                  style={[
-                                    styles.approveButton,
-                                    isBusy && styles.approveButtonDisabled,
-                                  ]}>
-                                  {isBusy ? (
-                                    <ActivityIndicator size="small" color={colors.text} />
-                                  ) : (
-                                    <>
-                                      <Text style={styles.approveButtonText}>موافقة</Text>
-                                      <Ionicons
-                                        name="checkmark-circle-outline"
-                                        size={16}
-                                        color={colors.text}
-                                      />
-                                    </>
-                                  )}
-                                </LinearGradient>
-                              </Pressable>
-                            </>
-                          ) : (
-                            <>
-                              {provider.filterStatus === 'rejected' ? (
-                                <Pressable
-                                  style={[styles.iconAction, styles.deleteButton]}
-                                  onPress={() => handleDelete(provider)}
-                                  disabled={isBusy}>
-                                  {isBusy ? (
-                                    <ActivityIndicator size="small" color={colors.error} />
-                                  ) : (
-                                    <Feather name="trash-2" size={18} color={colors.error} />
-                                  )}
-                                </Pressable>
-                              ) : (
-                                <Pressable
-                                  style={[styles.iconAction, styles.rejectButton]}
-                                  onPress={() => {
-                                    void handleReject(provider);
-                                  }}
-                                  disabled={isBusy}>
-                                  {isBusy ? (
-                                    <ActivityIndicator size="small" color={colors.error} />
-                                  ) : (
-                                    <Feather name="trash-2" size={18} color={colors.error} />
-                                  )}
-                                </Pressable>
-                              )}
-
-                              {provider.filterStatus === 'approved' && provider.tone !== 'suspended' ? (
-                                <Pressable
-                                  style={[styles.iconAction, styles.editButton]}
-                                  onPress={() => {
-                                    void handleSuspend(provider);
-                                  }}
-                                  disabled={isBusy}>
-                                  {isBusy ? (
-                                    <ActivityIndicator size="small" color={colors.text} />
-                                  ) : (
-                                    <Feather
-                                      name="slash"
-                                      size={18}
-                                      color="rgba(255,255,255,0.72)"
-                                    />
-                                  )}
-                                </Pressable>
-                              ) : (
-                                <Pressable
-                                  onPress={() => {
-                                    void handleApprove(provider);
-                                  }}
-                                  disabled={isBusy}>
-                                  <LinearGradient
-                                    colors={['#78DBA9', '#59C98F']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                    style={[
-                                      styles.approveButton,
-                                      isBusy && styles.approveButtonDisabled,
-                                    ]}>
-                                    {isBusy ? (
-                                      <ActivityIndicator size="small" color={colors.text} />
-                                    ) : (
-                                      <>
-                                        <Text style={styles.approveButtonText}>موافقة</Text>
-                                        <Ionicons
-                                          name="checkmark-circle-outline"
-                                          size={16}
-                                          color={colors.text}
-                                        />
-                                      </>
-                                    )}
-                                  </LinearGradient>
-                                </Pressable>
-                              )}
-                            </>
-                          )}
-                        </View>
-
-                        <Text style={styles.providerSpecialty}>{provider.specialty}</Text>
-                      </View>
-                    </View>
-                  );
-                })
-              : null}
-
-            {isEmpty ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={28} color={colors.textMuted} />
-                <Text style={styles.emptyTitle}>
+            ) : filteredProviders.length === 0 ? (
+              <View className="items-center justify-center gap-2 rounded-[24px] border border-white/10 bg-white/3 px-4.5 py-10">
+                <Ionicons color="#6B7280" name="search-outline" size={28} />
+                <Text className="font-cairo-bold text-[18px] text-admin-text">
                   {isCategoryView ? 'لا يوجد مزودون في هذا المجال' : 'لا توجد نتائج مطابقة'}
                 </Text>
-                <Text style={styles.emptyText}>
+                <Text className="text-center font-cairo text-[14px] leading-6 text-admin-muted">
                   {isCategoryView
                     ? 'جرّب تغيير الفلتر أو البحث لعرض مزودين آخرين داخل هذا القطاع.'
                     : 'جرّب تغيير البحث أو اختيار فلتر مختلف لعرض مزودين آخرين.'}
                 </Text>
               </View>
-            ) : null}
+            ) : (
+              filteredProviders.map((provider) => {
+                const status = statusMeta[provider.tone];
+                const isBusy = isBusyForProvider(provider.id);
+
+                return (
+                  <View
+                    key={provider.id}
+                    className="rounded-[30px] border border-white/10 bg-[#16141A]/95 px-4.5 py-4">
+                    <View className="flex-row items-start justify-between gap-3.5 px-1">
+                      <View
+                        className={`min-h-[38px] items-center justify-center self-start rounded-full border px-3.5 ${status.badgeClassName}`}>
+                        <Text
+                          style={{ color: status.color }}
+                          className="font-cairo-bold text-[12px]">
+                          {provider.badgeLabel}
+                        </Text>
+                      </View>
+
+                      <View className="flex-1 flex-row-reverse items-center gap-3">
+                        <View
+                          style={{
+                            borderColor: 'rgba(255,255,255,0.10)',
+                            borderRadius: 24,
+                            borderWidth: 1,
+                            height: 78,
+                            overflow: 'hidden',
+                            width: 78,
+                          }}>
+                          {provider.profileImageUrl ? (
+                            <Image
+                              contentFit="cover"
+                              source={{ uri: provider.profileImageUrl }}
+                              style={{ height: '100%', width: '100%' }}
+                            />
+                          ) : (
+                            <LinearGradient
+                              colors={provider.avatarGradient}
+                              end={{ x: 1, y: 1 }}
+                              start={{ x: 0, y: 0 }}
+                              style={{
+                                alignItems: 'center',
+                                flex: 1,
+                                justifyContent: 'center',
+                              }}>
+                              <MaterialCommunityIcons
+                                color={
+                                  provider.tone === 'approved'
+                                    ? '#8A8A8A'
+                                    : provider.tone === 'rejected'
+                                      ? '#451A1A'
+                                      : provider.tone === 'none'
+                                        ? '#D4D4D8'
+                                        : '#FFFFFF'
+                                }
+                                name={provider.avatarIcon as React.ComponentProps<typeof MaterialCommunityIcons>['name']}
+                                size={28}
+                              />
+                            </LinearGradient>
+                          )}
+                        </View>
+
+                        <View className="flex-1 items-end">
+                          <Text className="text-right font-cairo-bold text-[17px] leading-7 text-admin-text">
+                            {provider.name}
+                          </Text>
+                          <View className="mt-1 flex-row-reverse items-center gap-1.5">
+                            <Feather color="#9CA3AF" name="map-pin" size={12} />
+                            <Text className="font-cairo text-[11px] text-admin-muted">
+                              {provider.city}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View className="mx-1 my-4 h-px bg-white/10" />
+
+                    {provider.note ? (
+                      <View className="mb-3.5 flex-row-reverse items-center gap-1.5">
+                        <Ionicons
+                          color={provider.tone === 'rejected' ? '#EF4444' : '#F59E0B'}
+                          name="alert-circle-outline"
+                          size={14}
+                        />
+                        <Text className="flex-1 text-right font-cairo text-[12px] leading-[18px] text-admin-muted">
+                          {provider.note}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    <View className="flex-row-reverse items-center justify-between gap-3 px-1">
+                      <Text className="mr-2 flex-1 text-right font-cairo text-[12px] leading-6 text-admin-muted">
+                        {provider.specialty}
+                      </Text>
+
+                      <View className="flex-row items-center gap-2.5">
+                        {!provider.hasApplication &&
+                        !provider.isAwaitingApproval &&
+                        !provider.isActiveProvider ? (
+                          <View className="min-h-[44px] items-center justify-center rounded-[16px] border border-[#A1A1AA]/15 bg-[#A1A1AA]/10 px-4">
+                            <Text className="font-cairo-bold text-[12px] text-admin-subtle">
+                              لا يوجد طلب اعتماد
+                            </Text>
+                          </View>
+                        ) : !provider.hasApplication && provider.isAwaitingApproval ? (
+                          <>
+                            <Pressable
+                              className="h-[48px] w-[48px] items-center justify-center rounded-full border border-admin-danger/20 bg-[#471717]/30"
+                              disabled={isBusy}
+                              onPress={() => {
+                                void handleReject(provider);
+                              }}>
+                              {isBusy ? (
+                                <ActivityIndicator color="#EF4444" size="small" />
+                              ) : (
+                                <Feather color="#EF4444" name="trash-2" size={16} />
+                              )}
+                            </Pressable>
+
+                            <Pressable
+                              disabled={isBusy}
+                              onPress={() => {
+                                void handleApprove(provider);
+                              }}>
+                              <LinearGradient
+                                colors={['#78DBA9', '#59C98F']}
+                                end={{ x: 1, y: 1 }}
+                                start={{ x: 0, y: 0 }}
+                                style={{
+                                  alignItems: 'center',
+                                  borderRadius: 999,
+                                  flexDirection: 'row',
+                                  gap: 8,
+                                  height: 48,
+                                  justifyContent: 'center',
+                                  minWidth: 118,
+                                  opacity: isBusy ? 0.82 : 1,
+                                  paddingHorizontal: 16,
+                                }}>
+                                {isBusy ? (
+                                  <ActivityIndicator color="#FFFFFF" size="small" />
+                                ) : (
+                                  <>
+                                    <Text className="font-cairo-bold text-[13px] text-admin-text">
+                                      موافقة
+                                    </Text>
+                                    <Ionicons color="#FFFFFF" name="checkmark-circle-outline" size={18} />
+                                  </>
+                                )}
+                              </LinearGradient>
+                            </Pressable>
+                          </>
+                        ) : (
+                          <>
+                            {provider.filterStatus === 'rejected' ? (
+                              <Pressable
+                                className="h-[48px] w-[48px] items-center justify-center rounded-full border border-admin-danger/20 bg-[#471717]/24"
+                                disabled={isBusy}
+                                onPress={() => handleDelete(provider)}>
+                                {isBusy ? (
+                                  <ActivityIndicator color="#EF4444" size="small" />
+                                ) : (
+                                  <Feather color="#EF4444" name="trash-2" size={16} />
+                                )}
+                              </Pressable>
+                            ) : (
+                              <Pressable
+                                className="h-[48px] w-[48px] items-center justify-center rounded-full border border-admin-danger/20 bg-[#471717]/28"
+                                disabled={isBusy}
+                                onPress={() => {
+                                  void handleReject(provider);
+                                }}>
+                                {isBusy ? (
+                                  <ActivityIndicator color="#EF4444" size="small" />
+                                ) : (
+                                  <Feather color="#EF4444" name="trash-2" size={16} />
+                                )}
+                              </Pressable>
+                            )}
+
+                            {provider.filterStatus === 'approved' && provider.tone !== 'suspended' ? (
+                              <Pressable
+                                className="h-[48px] w-[48px] items-center justify-center rounded-full border border-white/10 bg-white/5"
+                                disabled={isBusy}
+                                onPress={() => {
+                                  void handleSuspend(provider);
+                                }}>
+                                {isBusy ? (
+                                  <ActivityIndicator color="#FFFFFF" size="small" />
+                                ) : (
+                                  <Feather color="rgba(255,255,255,0.72)" name="slash" size={14} />
+                                )}
+                              </Pressable>
+                            ) : (
+                              <Pressable
+                                disabled={isBusy}
+                                onPress={() => {
+                                  void handleApprove(provider);
+                                }}>
+                                <LinearGradient
+                                  colors={['#78DBA9', '#59C98F']}
+                                  end={{ x: 1, y: 1 }}
+                                  start={{ x: 0, y: 0 }}
+                                style={{
+                                  alignItems: 'center',
+                                  borderRadius: 999,
+                                  flexDirection: 'row',
+                                  gap: 8,
+                                  height: 48,
+                                  justifyContent: 'center',
+                                  minWidth: 118,
+                                  opacity: isBusy ? 0.82 : 1,
+                                  paddingHorizontal: 16,
+                                }}>
+                                  {isBusy ? (
+                                    <ActivityIndicator color="#FFFFFF" size="small" />
+                                  ) : (
+                                    <>
+                                      <Text className="font-cairo-bold text-[13px] text-admin-text">
+                                        موافقة
+                                      </Text>
+                                      <Ionicons color="#FFFFFF" name="checkmark-circle-outline" size={18} />
+                                    </>
+                                  )}
+                                </LinearGradient>
+                              </Pressable>
+                            )}
+                          </>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                );
+              })
+            )}
           </View>
         </ScrollView>
       </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  screen: {
-    flex: 1,
-    backgroundColor: '#09080C',
-  },
-  topGlow: {
-    position: 'absolute',
-    top: -40,
-    right: -42,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-  },
-  bottomGlow: {
-    position: 'absolute',
-    bottom: 120,
-    left: -80,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 24,
-    gap: 14,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
-  headerDetailRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 12,
-  },
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  headerText: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  headerTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 24,
-    textAlign: 'right',
-  },
-  headerSubtitle: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
-    textAlign: 'right',
-    marginTop: 2,
-  },
-  headerBadge: {
-    backgroundColor: 'rgba(139, 92, 246, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(167, 139, 250, 0.16)',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  headerBadgeText: {
-    color: colors.accent,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 12,
-  },
-  brandWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 26,
-    letterSpacing: 0.4,
-  },
-  hero: {
-    alignItems: 'flex-end',
-    paddingTop: 14,
-    gap: 6,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 34,
-    lineHeight: 48,
-    paddingTop: 4,
-    textAlign: 'right',
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 15,
-    textAlign: 'right',
-  },
-  searchBar: {
-    minHeight: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    gap: 12,
-  },
-  searchInput: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 15,
-    fontFamily: typography.fontFamily.regular,
-  },
-  filtersRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 10,
-  },
-  filterPressable: {
-    flexShrink: 0,
-  },
-  filterChip: {
-    minHeight: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  filterChipText: {
-    color: 'rgba(255,255,255,0.78)',
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 13,
-  },
-  activeFilter: {
-    minHeight: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-    shadowColor: colors.primaryLight,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 7,
-  },
-  activeFilterText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 13,
-  },
-  summaryRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'stretch',
-    gap: 10,
-  },
-  summaryCard: {
-    flex: 1,
-    minHeight: 96,
-    borderRadius: 22,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-  },
-  summaryIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  summaryValue: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 24,
-    lineHeight: 34,
-    paddingTop: 2,
-    textAlign: 'center',
-  },
-  summaryLabel: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  cardsList: {
-    gap: 14,
-    marginTop: 2,
-  },
-  loadingState: {
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 42,
-    paddingHorizontal: 18,
-    gap: 12,
-  },
-  loadingText: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  providerCard: {
-    backgroundColor: 'rgba(22, 20, 26, 0.96)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 6,
-  },
-  providerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  statusBadge: {
-    minHeight: 30,
-    borderRadius: 15,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  statusBadgeText: {
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 12,
-  },
-  providerIdentity: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  providerText: {
-    alignItems: 'flex-end',
-    flexShrink: 1,
-  },
-  providerName: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-    textAlign: 'right',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  providerLocation: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
-  },
-  providerAvatar: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-  },
-  cardDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    marginVertical: 14,
-  },
-  noteWrap: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 12,
-  },
-  noteText: {
-    flex: 1,
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'right',
-  },
-  providerFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  providerSpecialty: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 14,
-    textAlign: 'right',
-    flex: 1,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  noApplicationBadge: {
-    minHeight: 38,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(161, 161, 170, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(161, 161, 170, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noApplicationText: {
-    color: colors.textMuted,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 12,
-  },
-  iconAction: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  rejectButton: {
-    backgroundColor: 'rgba(71, 23, 23, 0.28)',
-    borderColor: 'rgba(239, 68, 68, 0.18)',
-  },
-  deleteButton: {
-    backgroundColor: 'rgba(71, 23, 23, 0.24)',
-    borderColor: 'rgba(239, 68, 68, 0.16)',
-  },
-  editButton: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.08)',
-  },
-  approveButton: {
-    minWidth: 108,
-    height: 42,
-    borderRadius: 21,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  approveButtonDisabled: {
-    opacity: 0.82,
-  },
-  approveButtonText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 13,
-  },
-  emptyState: {
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 42,
-    paddingHorizontal: 18,
-    gap: 8,
-  },
-  emptyTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 18,
-  },
-  emptyText: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-});
