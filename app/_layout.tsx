@@ -1,13 +1,17 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Cairo_400Regular, Cairo_700Bold } from '@expo-google-fonts/cairo';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import 'react-native-reanimated';
+import '../global.css';
 
+import { AuthProvider } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { queryClient } from '@/services/queryClient';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -34,9 +38,13 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ headerShown: false }} />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

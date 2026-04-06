@@ -1,150 +1,152 @@
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Link, useRouter } from 'expo-router';
+import React from 'react';
+import { Text, useWindowDimensions, View } from 'react-native';
+import { useForm } from 'react-hook-form';
 
-import { colors, Logo, typography } from '@/theme';
+import AuthBrandHeader from '@/components/auth/AuthBrandHeader';
+import AuthControlledField from '@/components/auth/AuthControlledField';
+import AuthPrimaryButton from '@/components/auth/AuthPrimaryButton';
+import AuthScreenShell from '@/components/auth/AuthScreenShell';
+import { authClassNames } from '@/components/auth/authTheme';
+import { EMAIL_REGEX, authValidationMessages } from '@/components/auth/authValidation';
+import useAuth from '@/hooks/useAuth';
+import { getRouteForRole } from '@/services/authRoutes';
+import { colors } from '@/theme';
+
+type LoginFormValues = {
+  email: string;
+  password: string;
+};
 
 export default function LoginScreen() {
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const { width, height } = useWindowDimensions();
+  const isSmallScreen = width < 370 || height < 760;
+  const brandSpacingClassName = isSmallScreen ? 'mb-6' : 'mb-9';
+  const loginLogoClassName = width < 370 ? 'text-[34px]' : 'text-[40px]';
+  const loginTitleClassName =
+    width < 370
+      ? 'text-[26px] leading-[38px]'
+      : width < 430
+        ? 'text-[30px] leading-[42px]'
+        : 'text-[32px] leading-[44px]';
+  const loginSubtitleClassName = isSmallScreen
+    ? 'text-[13px] leading-[22px]'
+    : 'text-[15px] leading-[26px]';
+  const fieldsGapClassName = isSmallScreen ? 'w-full gap-3' : 'w-full gap-4';
+  const { error, clearError, isLoading, login } = useAuth();
+  const {
+    control,
+    handleSubmit,
+    watch,
+  } = useForm<LoginFormValues>({
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+    mode: 'onChange',
+  });
+  const emailValue = watch('email');
+  const passwordValue = watch('password');
+  const loading = isLoading('login');
+  const canSubmit = Boolean(emailValue.trim() && passwordValue.trim()) && !loading;
+
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      const response = await login({
+        email: values.email.trim(),
+        password: values.password,
+      });
+      router.replace(getRouteForRole(response.user.role));
+    } catch {}
+  });
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar style="light" />
-      <View style={styles.glowTop} />
-      <View style={styles.glowBottom} />
+    <AuthScreenShell
+      isSmallScreen={isSmallScreen}
+      topPaddingSmall={24}
+      topPaddingLarge={40}
+      bottomPaddingSmall={24}
+      bottomPaddingLarge={36}
+      contentContainerStyle={{ paddingHorizontal: 6 }}>
+      <AuthBrandHeader
+        brandColor={colors.primary}
+        containerClassName={brandSpacingClassName}
+        logoClassName={loginLogoClassName}
+        subtitleClassName="mt-[6px] text-[11px] tracking-[2.8px]"
+      />
 
-      <View style={styles.header}>
-        <Logo size="small" />
-        <Text style={styles.title}>تسجيل دخول مزود الخدمة</Text>
-        <Text style={styles.subtitle}>ادخل بياناتك للمتابعة مباشرة إلى لوحة التحكم الخاصة بك.</Text>
-      </View>
+      <View className={`${authClassNames.screen.panel} mt-2 rounded-[22px] py-[18px]`}>
+        <View className="mb-5 items-end">
+          <Text className={`${authClassNames.text.title} ${loginTitleClassName} text-right`}>
+            تسجيل الدخول
+          </Text>
+          <Text
+            className={`${authClassNames.text.subtitle} ${loginSubtitleClassName} mt-[10px] text-right`}>
+            أهلًا بك. أدخل بريدك الإلكتروني وكلمة المرور وسنوجهك لحسابك مباشرة
+          </Text>
+        </View>
 
-      <View style={styles.form}>
-        <TextInput
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="رقم الجوال"
-          placeholderTextColor={colors.textMuted}
-          keyboardType="phone-pad"
-          style={styles.input}
-          textAlign="right"
+        <View className={fieldsGapClassName}>
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="email"
+            rules={{
+              pattern: {
+                message: authValidationMessages.invalidEmail,
+                value: EMAIL_REGEX,
+              },
+              required: authValidationMessages.requiredEmail,
+            }}
+            label="البريد الإلكتروني"
+            placeholder="provider@lumixy.ps"
+            icon="mail-outline"
+            keyboardType="email-address"
+          />
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="password"
+            rules={{
+              required: authValidationMessages.requiredPassword,
+            }}
+            label="كلمة المرور"
+            placeholder="••••••••"
+            secureTextEntry
+            icon="lock-closed-outline"
+          />
+        </View>
+
+        {error ? <Text className={authClassNames.text.error}>{error}</Text> : null}
+
+        <Link href="/auth/forgot-password" asChild>
+          <Text className="mt-3 self-end text-[14px] text-[#AFA4C5]">نسيت كلمة المرور؟</Text>
+        </Link>
+
+        <AuthPrimaryButton
+          title={canSubmit ? 'تسجيل الدخول' : 'أدخل البيانات للمتابعة'}
+          loading={loading}
+          disabled={!canSubmit}
+          onPress={onSubmit}
+          marginTop={isSmallScreen ? 14 : 18}
         />
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="كلمة المرور"
-          placeholderTextColor={colors.textMuted}
-          secureTextEntry
-          style={styles.input}
-          textAlign="right"
-        />
 
-        <Pressable style={styles.primaryButton} onPress={() => router.replace('/provider/tabs')}>
-          <Text style={styles.primaryButtonText}>دخول</Text>
-        </Pressable>
+        <View className="mt-6 flex-row-reverse items-center justify-center">
+          <Text className="font-cairo-bold text-[15px] text-textMuted">ليس لديك حساب ؟ </Text>
+          <Link href="/auth/signup" asChild>
+            <Text className="font-cairo-bold text-[16px] font-bold text-[#E6DEFF]">سجل الآن</Text>
+          </Link>
+        </View>
 
-        <Pressable style={styles.secondaryButton} onPress={() => router.back()}>
-          <Text style={styles.secondaryButtonText}>رجوع</Text>
-        </Pressable>
+        <Link href="/entry" asChild>
+          <Text className="mt-[34px] self-center font-cairo-bold text-[14px] text-[#8B8DAA]">
+            العودة إلى الصفحة الرئيسية
+          </Text>
+        </Link>
       </View>
-    </KeyboardAvoidingView>
+    </AuthScreenShell>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 24,
-    paddingTop: 72,
-    paddingBottom: 32,
-    justifyContent: 'space-between',
-  },
-  glowTop: {
-    position: 'absolute',
-    top: 40,
-    left: -30,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(109, 40, 217, 0.18)',
-  },
-  glowBottom: {
-    position: 'absolute',
-    right: -50,
-    bottom: 120,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(167, 139, 250, 0.14)',
-  },
-  header: {
-    alignItems: 'center',
-    gap: 16,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 28,
-    textAlign: 'center',
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'center',
-    maxWidth: 320,
-  },
-  form: {
-    gap: 14,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    fontFamily: typography.fontFamily.regular,
-    borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    fontSize: 15,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 18,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  primaryButtonText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
-  },
-  secondaryButton: {
-    borderRadius: 18,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  secondaryButtonText: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 15,
-  },
-});
