@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { authShared } from '@/components/auth/authTheme';
+import { authClassNames } from '@/components/auth/authTheme';
+import { colors } from '@/theme';
 
 type Props = {
   children: ReactNode;
@@ -30,14 +31,14 @@ export default function AuthScreenShell({
   contentContainerStyle,
 }: Props) {
   return (
-    <SafeAreaView style={authShared.safeArea}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: 'padding', default: undefined })}
-        style={authShared.container}>
+        className={authClassNames.screen.container}>
         <ScrollView
           contentContainerStyle={[
-            authShared.content,
             {
+              flexGrow: 1,
               paddingTop: isSmallScreen ? topPaddingSmall : topPaddingLarge,
               paddingBottom: isSmallScreen ? bottomPaddingSmall : bottomPaddingLarge,
             },

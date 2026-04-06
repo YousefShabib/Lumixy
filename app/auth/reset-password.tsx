@@ -1,20 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Text, useWindowDimensions, View } from 'react-native';
+import { useForm } from 'react-hook-form';
 
-import AuthField from '@/components/auth/AuthField';
+import AuthBackButton from '@/components/auth/AuthBackButton';
+import AuthControlledField from '@/components/auth/AuthControlledField';
 import AuthPrimaryButton from '@/components/auth/AuthPrimaryButton';
 import AuthScreenShell from '@/components/auth/AuthScreenShell';
-import { authShared } from '@/components/auth/authTheme';
+import { authClassNames, authStyles } from '@/components/auth/authTheme';
+import {
+  PASSWORD_MIN_LENGTH,
+  authValidationMessages,
+} from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
-import { colors, typography } from '@/theme';
+import { colors } from '@/theme';
+
+type ResetPasswordFormValues = {
+  confirmPassword: string;
+  password: string;
+};
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -24,38 +29,51 @@ export default function ResetPasswordScreen() {
 
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 370 || height < 760;
+  const iconCardMarginClassName = isSmallScreen ? 'mt-2' : 'mt-[18px]';
+  const titleClassName = isSmallScreen ? 'text-[28px] leading-[48px]' : 'text-[32px] leading-[48px]';
+  const subtitleClassName =
+    isSmallScreen ? 'text-[12px] leading-[25px]' : 'text-[13px] leading-[25px]';
   const largeIconSize = isSmallScreen ? 42 : 50;
+  const fieldGroupClassName = 'gap-[14px]';
   const { error, clearError, isLoading, resetPassword, setError } = useAuth();
+  const {
+    control,
+    formState: { isValid },
+    getValues,
+    handleSubmit,
+    trigger,
+    watch,
+  } = useForm<ResetPasswordFormValues>({
+    defaultValues: {
+      confirmPassword: '',
+      password: '',
+    },
+    mode: 'onChange',
+  });
 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const passwordValue = watch('password');
+  const confirmPasswordValue = watch('confirmPassword');
   const loading = isLoading('resetPassword');
+  const canSubmit = isValid && !loading;
 
-  const canSubmit =
-    Boolean(password && confirmPassword) &&
-    password === confirmPassword &&
-    !loading;
+  useEffect(() => {
+    if (confirmPasswordValue) {
+      void trigger('confirmPassword');
+    }
+  }, [confirmPasswordValue, passwordValue, trigger]);
 
-  const handleReset = async () => {
+  const onSubmit = handleSubmit(async (values) => {
     if (!email || !otp) {
       setError('انتهت الجلسة. يرجى إعادة إرسال الرمز.');
       return;
     }
-    if (!password || !confirmPassword) {
-      setError('يرجى إدخال كلمة المرور الجديدة.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('تأكيد كلمة المرور غير مطابق.');
-      return;
-    }
 
     try {
-      await resetPassword(email, otp, password, confirmPassword);
+      await resetPassword(email, otp, values.password, values.confirmPassword);
       setIsSuccess(true);
     } catch {}
-  };
+  });
 
   return (
     <AuthScreenShell
@@ -63,41 +81,44 @@ export default function ResetPasswordScreen() {
       topPaddingSmall={20}
       topPaddingLarge={34}
       bottomPaddingSmall={24}
-      bottomPaddingLarge={34}
-      contentContainerStyle={styles.content}>
-      <View style={styles.topRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.85}>
-          <Ionicons name="arrow-forward" size={18} color="#B8B0D8" />
-        </TouchableOpacity>
-      </View>
+      bottomPaddingLarge={34}>
+      <AuthBackButton onPress={() => router.back()} />
 
-      <View style={[styles.lockCard, styles.statusCard, isSuccess ? styles.successIconCard : null, { marginTop: isSmallScreen ? 8 : 18 }]}>
+      <View
+        className={`${authClassNames.screen.iconCard} ${iconCardMarginClassName} rounded-[30px]`}
+        style={[
+          authStyles.iconCardShadow,
+          isSuccess ? authStyles.successIconCard : undefined,
+        ]}>
         <Ionicons
           name={isSuccess ? 'checkmark-circle' : 'shield-checkmark-outline'}
           size={largeIconSize}
-          color={isSuccess ? '#7CFFB2' : '#B28CFF'}
+          color={isSuccess ? colors.success : colors.accent}
         />
       </View>
 
-      <View style={styles.header}>
-        <Text style={[styles.title, { fontSize: isSmallScreen ? 28 : 32 }]}>
+      <View className="mt-[22px] items-center">
+        <Text className={`${authClassNames.text.title} ${titleClassName} pt-[10px] text-center`}>
           {isSuccess ? 'تم تغيير كلمة المرور' : 'تعيين كلمة مرور جديدة'}
         </Text>
-        <Text style={[styles.subtitle, { fontSize: isSmallScreen ? 12 : 13 }]}>
+        <Text
+          className={`${authClassNames.text.subtitle} ${subtitleClassName} mt-[10px] text-center`}>
           {isSuccess
             ? 'تم تحديث كلمة المرور بنجاح.'
             : `أدخل كلمة مرور جديدة لحسابك\n${email || 'البريد الإلكتروني'}`}
         </Text>
       </View>
 
-      <View style={styles.panel}>
+      <View className={`${authClassNames.screen.panel} mt-[18px]`}>
         {isSuccess ? (
-          <View style={styles.successPanel}>
-            <View style={styles.successBadge}>
+          <View className="items-center pb-[6px] pt-2">
+            <View className="mb-[18px] flex-row-reverse items-center gap-2 rounded-full bg-success px-[14px] py-2">
               <Ionicons name="sparkles" size={18} color="#0A2D1C" />
-              <Text style={styles.successBadgeText}>نجاح</Text>
+              <Text className="font-cairo-bold text-[13px] text-[#0A2D1C]">نجاح</Text>
             </View>
-            <Text style={styles.successTitle}>كلمة المرور الجديدة أصبحت فعالة</Text>
+            <Text className="mb-1 text-center font-cairo-bold text-[23px] text-text">
+              كلمة المرور الجديدة أصبحت فعالة
+            </Text>
             <AuthPrimaryButton
               title="الذهاب إلى تسجيل الدخول"
               onPress={() => router.replace('/auth/login')}
@@ -106,112 +127,53 @@ export default function ResetPasswordScreen() {
             />
           </View>
         ) : (
-          <>
-            <AuthField
-              label="كلمة المرور الجديدة"
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                if (error) clearError();
+          <View className={fieldGroupClassName}>
+            <AuthControlledField
+              authError={error}
+              clearAuthError={clearError}
+              control={control}
+              name="password"
+              rules={{
+                minLength: {
+                  message: authValidationMessages.passwordMinLength,
+                  value: PASSWORD_MIN_LENGTH,
+                },
+                required: authValidationMessages.requiredResetPassword,
               }}
-              secureTextEntry
+              label="كلمة المرور الجديدة"
               placeholder="كلمة المرور الجديدة"
+              secureTextEntry
               icon="lock-closed-outline"
             />
-            <AuthField
-              label="تأكيد كلمة المرور"
-              value={confirmPassword}
-              onChangeText={(value) => {
-                setConfirmPassword(value);
-                if (error) clearError();
+            <AuthControlledField
+              authError={error}
+              clearAuthError={clearError}
+              control={control}
+              name="confirmPassword"
+              rules={{
+                required: authValidationMessages.requiredConfirmPassword,
+                validate: (value) =>
+                  value === getValues('password') || authValidationMessages.confirmPasswordMismatch,
               }}
-              secureTextEntry
+              label="تأكيد كلمة المرور"
               placeholder="تأكيد كلمة المرور الجديدة"
+              secureTextEntry
               icon="shield-checkmark-outline"
             />
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text className={authClassNames.text.error}>{error}</Text> : null}
 
             <AuthPrimaryButton
               title={canSubmit ? 'حفظ كلمة المرور' : 'أدخل البيانات كاملة'}
               loading={loading}
               disabled={!canSubmit}
-              onPress={handleReset}
+              onPress={onSubmit}
               marginTop={18}
               fullWidth="88%"
             />
-          </>
+          </View>
         )}
       </View>
     </AuthScreenShell>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    ...authShared.content,
-  },
-  topRow: {
-    ...authShared.topRow,
-  },
-  backButton: {
-    ...authShared.backButton,
-  },
-  lockCard: {
-    ...authShared.iconCard,
-  },
-  statusCard: {
-    borderRadius: 30,
-  },
-  successIconCard: {
-    backgroundColor: 'rgba(27, 87, 53, 0.24)',
-    borderColor: 'rgba(124, 255, 178, 0.32)',
-    shadowColor: '#52D98C',
-  },
-  header: {
-    ...authShared.header,
-  },
-  title: {
-    ...authShared.title,
-    lineHeight: 48,
-    paddingTop: 10,
-    fontFamily: typography.fontFamily.bold,
-  },
-  subtitle: {
-    ...authShared.subtitle,
-    fontFamily: typography.fontFamily.bold,
-  },
-  panel: {
-    ...authShared.panel,
-  },
-  successPanel: {
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 6,
-  },
-  successBadge: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(124, 255, 178, 0.9)',
-    marginBottom: 18,
-  },
-  successBadgeText: {
-    color: '#0A2D1C',
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 13,
-  },
-  successTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 23,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  errorText: {
-    ...authShared.errorText,
-  },
-});

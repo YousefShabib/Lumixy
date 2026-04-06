@@ -1,42 +1,52 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import React from 'react';
+import { Text, useWindowDimensions, View } from 'react-native';
+import { useForm } from 'react-hook-form';
 
-import AuthField from '@/components/auth/AuthField';
+import AuthBackButton from '@/components/auth/AuthBackButton';
+import AuthControlledField from '@/components/auth/AuthControlledField';
 import AuthPrimaryButton from '@/components/auth/AuthPrimaryButton';
 import AuthScreenShell from '@/components/auth/AuthScreenShell';
-import { authShared } from '@/components/auth/authTheme';
+import { authClassNames, authStyles } from '@/components/auth/authTheme';
+import { EMAIL_REGEX, authValidationMessages } from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
-import { typography } from '@/theme';
+import { colors } from '@/theme';
+
+type ForgotPasswordFormValues = {
+  email: string;
+};
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 370 || height < 760;
+  const iconCardMarginClassName = isSmallScreen ? 'mt-4' : 'mt-[26px]';
+  const titleClassName = isSmallScreen ? 'text-[26px]' : 'text-[30px]';
+  const subtitleClassName =
+    isSmallScreen ? 'text-[12px] leading-[25px]' : 'text-[13px] leading-[25px]';
   const iconSize = isSmallScreen ? 40 : 48;
-  const { error, clearError, isLoading, sendForgotPasswordOtp, setError } = useAuth();
-  const [email, setEmail] = useState('');
+  const { error, clearError, isLoading, sendForgotPasswordOtp } = useAuth();
+  const {
+    control,
+    formState: { isValid },
+    handleSubmit,
+  } = useForm<ForgotPasswordFormValues>({
+    defaultValues: {
+      email: '',
+    },
+    mode: 'onChange',
+  });
   const loading = isLoading('sendForgotPasswordOtp');
-  const canSubmit = Boolean(email.trim()) && !loading;
+  const canSubmit = isValid && !loading;
 
-  const handleSendOtp = async () => {
-    if (!email.trim()) {
-      setError('يرجى إدخال البريد الإلكتروني.');
-      return;
-    }
-
+  const onSubmit = handleSubmit(async (values) => {
     try {
-      await sendForgotPasswordOtp(email.trim());
-      router.push({ pathname: '/auth/verify-code', params: { email: email.trim() } });
+      const email = values.email.trim();
+      await sendForgotPasswordOtp(email);
+      router.push({ pathname: '/auth/verify-code', params: { email } });
     } catch {}
-  };
+  });
 
   return (
     <AuthScreenShell
@@ -44,89 +54,58 @@ export default function ForgotPasswordScreen() {
       topPaddingSmall={24}
       topPaddingLarge={40}
       bottomPaddingSmall={24}
-      bottomPaddingLarge={36}
-      contentContainerStyle={styles.contentContainer}>
-      <View style={styles.topRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.85}>
-          <Ionicons name="arrow-forward" size={18} color="#B8B0D8" />
-        </TouchableOpacity>
+      bottomPaddingLarge={36}>
+      <AuthBackButton onPress={() => router.back()} />
+
+      <View
+        className={`${authClassNames.screen.iconCard} ${iconCardMarginClassName}`}
+        style={[authStyles.iconCardShadow]}>
+        <Ionicons name="mail-open-outline" size={iconSize} color={colors.accent} />
       </View>
 
-      <View style={[styles.iconCard, { marginTop: isSmallScreen ? 16 : 26 }]}>
-        <Ionicons name="mail-open-outline" size={iconSize} color="#B28CFF" />
-      </View>
-
-      <View style={styles.header}>
-        <Text style={[styles.title, { fontSize: isSmallScreen ? 26 : 30 }]}>نسيت كلمة المرور؟</Text>
-        <Text style={[styles.subtitle, { fontSize: isSmallScreen ? 12 : 13 }]}>
+      <View className="mt-6 items-center">
+        <Text className={`${authClassNames.text.title} ${titleClassName} text-center`}>
+          نسيت كلمة المرور؟
+        </Text>
+        <Text
+          className={`${authClassNames.text.subtitle} ${subtitleClassName} mt-[10px] text-center`}>
           لا تقلق. أدخل بريدك الإلكتروني وسنرسل لك
           {'\n'}
           رمز التحقق لإعادة تعيين كلمة المرور.
         </Text>
       </View>
 
-      <View style={styles.panel}>
-        <View style={styles.fieldWrap}>
-          <AuthField
+      <View className={`${authClassNames.screen.panel} mt-6`}>
+        <View className="mt-5">
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="email"
+            rules={{
+              pattern: {
+                message: authValidationMessages.invalidEmail,
+                value: EMAIL_REGEX,
+              },
+              required: authValidationMessages.requiredEmail,
+            }}
             label="البريد الإلكتروني"
             placeholder="example@domain.com"
             icon="mail-outline"
             keyboardType="email-address"
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              if (error) clearError();
-            }}
           />
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text className={authClassNames.text.error}>{error}</Text> : null}
 
         <AuthPrimaryButton
           title={canSubmit ? 'إرسال رمز التحقق' : 'أدخل البريد الإلكتروني'}
           loading={loading}
           disabled={!canSubmit}
-          onPress={handleSendOtp}
+          onPress={onSubmit}
           marginTop={18}
         />
       </View>
     </AuthScreenShell>
   );
 }
-
-const styles = StyleSheet.create({
-  contentContainer: {
-    ...authShared.content,
-  },
-  panel: {
-    ...authShared.panel,
-    marginTop: 24,
-  },
-  topRow: {
-    ...authShared.topRow,
-  },
-  backButton: {
-    ...authShared.backButton,
-  },
-  iconCard: {
-    ...authShared.iconCard,
-  },
-  header: {
-    ...authShared.header,
-    marginTop: 24,
-  },
-  title: {
-    ...authShared.title,
-    fontFamily: typography.fontFamily.bold,
-  },
-  subtitle: {
-    ...authShared.subtitle,
-    fontFamily: typography.fontFamily.bold,
-  },
-  fieldWrap: {
-    marginTop: 20,
-  },
-  errorText: {
-    ...authShared.errorText,
-  },
-});

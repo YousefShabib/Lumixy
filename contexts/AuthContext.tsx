@@ -1,13 +1,7 @@
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 
 import { AuthUser } from '@/services/auth';
-import {
-  clearAuthSession,
-  getStoredAuthSession,
-  saveAuthSession,
-  StoredAuthRole,
-  StoredAuthSession,
-} from '@/services/storage';
+import StorageService, { StoredAuthRole, StoredAuthSession } from '@/services/storage';
 
 type AuthSessionInput = {
   token: string;
@@ -43,14 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const hydrateSession = async () => {
       try {
-        const storedSession = await getStoredAuthSession();
+        const storedSession = await StorageService.getSession();
         if (!isMounted || !storedSession) {
           return;
         }
 
         const normalizedUser = normalizeStoredUser(storedSession.user);
         if (!normalizedUser) {
-          await clearAuthSession();
+          await StorageService.removeSession();
           return;
         }
 
@@ -76,14 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       clearSession: async () => {
-        await clearAuthSession();
+        await StorageService.removeSession();
         setSessionState(null);
       },
       isAuthenticated: Boolean(session?.token),
       isHydrating,
       role: session?.role ?? null,
       setSession: async (nextSession) => {
-        await saveAuthSession(nextSession);
         setSessionState(nextSession);
       },
       user: session?.user ?? null,

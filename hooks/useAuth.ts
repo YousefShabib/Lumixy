@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import { useMutation } from '@tanstack/react-query';
+
 import { useAuthContext } from '@/contexts/AuthContext';
 import { getReadableError } from '@/services/api';
 import {
@@ -22,23 +24,85 @@ type AuthAction =
   | 'logout';
 
 export default function useAuth() {
-  const [pendingAction, setPendingAction] = useState<AuthAction | null>(null);
-  const [error, setError] = useState('');
+  const [manualError, setManualError] = useState('');
   const { clearSession, isAuthenticated, isHydrating, role, setSession, user } = useAuthContext();
+  const loginMutation = useMutation({
+    mutationFn: loginProviderRequest,
+    onSuccess: async (response: AuthResponse) => {
+      await setSession({
+        token: response.token,
+        role: response.user.role,
+        user: response.user,
+      });
+    },
+  });
+  const registerMutation = useMutation({
+    mutationFn: registerProviderRequest,
+    onSuccess: async (response: AuthResponse) => {
+      await setSession({
+        token: response.token,
+        role: response.user.role,
+        user: response.user,
+      });
+    },
+  });
+  const sendForgotPasswordOtpMutation = useMutation({
+    mutationFn: sendForgotPasswordOtpRequest,
+  });
+  const verifyPasswordOtpMutation = useMutation({
+    mutationFn: ({ email, otp }: { email: string; otp: string }) =>
+      verifyPasswordOtpRequest(email, otp),
+  });
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({
+      email,
+      otp,
+      password,
+      passwordConfirmation,
+    }: {
+      email: string;
+      otp: string;
+      password: string;
+      passwordConfirmation: string;
+    }) => resetPasswordWithOtpRequest(email, otp, password, passwordConfirmation),
+  });
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      if (role === 'admin') {
+        await logoutAdminRequest();
+        return;
+      }
 
-  const runAction = async <T>(action: AuthAction, callback: () => Promise<T>) => {
-    try {
-      setPendingAction(action);
-      setError('');
-      return await callback();
-    } catch (e) {
-      const message = getReadableError(e);
-      setError(message);
-      throw e;
-    } finally {
-      setPendingAction(null);
-    }
+      if (role === 'provider') {
+        await logoutProviderRequest();
+        return;
+      }
+    },
+    onSettled: async () => {
+      await clearSession();
+    },
+  });
+
+  const mutationMap = {
+    login: loginMutation,
+    logout: logoutMutation,
+    register: registerMutation,
+    resetPassword: resetPasswordMutation,
+    sendForgotPasswordOtp: sendForgotPasswordOtpMutation,
+    verifyPasswordOtp: verifyPasswordOtpMutation,
+  } satisfies Record<AuthAction, { error: unknown; isPending: boolean; reset: () => void }>;
+
+  const clearError = () => {
+    setManualError('');
+    Object.values(mutationMap).forEach((mutation) => mutation.reset());
   };
+
+  const error =
+    manualError ||
+    Object.values(mutationMap)
+      .map((mutation) => (mutation.error ? getReadableError(mutation.error) : ''))
+      .find(Boolean) ||
+    '';
 
   return {
     isAuthenticated,
@@ -46,65 +110,36 @@ export default function useAuth() {
     role,
     user,
     error,
-    clearError: () => setError(''),
-    setError: (message: string) => setError(message),
+    clearError,
+    setError: (message: string) => {
+      clearError();
+      setManualError(message);
+    },
     isLoading: (action?: AuthAction) => {
-      if (!pendingAction) {
-        return false;
-      }
-
-      return action ? pendingAction === action : true;
+      return action
+        ? mutationMap[action].isPending
+        : Object.values(mutationMap).some((mutation) => mutation.isPending);
     },
     login: (payload: Parameters<typeof loginProviderRequest>[0]) =>
-      runAction('login', async () => {
-        const response: AuthResponse = await loginProviderRequest(payload);
-
-        await setSession({
-          token: response.token,
-          role: response.user.role,
-          user: response.user,
-        });
-
-        return response;
-      }),
+      loginMutation.mutateAsync(payload),
     register: (payload: Parameters<typeof registerProviderRequest>[0]) =>
-      runAction('register', async () => {
-        const response = await registerProviderRequest(payload);
-
-        await setSession({
-          token: response.token,
-          role: response.user.role,
-          user: response.user,
-        });
-
-        return response;
-      }),
+      registerMutation.mutateAsync(payload),
     sendForgotPasswordOtp: (email: string) =>
-      runAction('sendForgotPasswordOtp', () => sendForgotPasswordOtpRequest(email)),
+      sendForgotPasswordOtpMutation.mutateAsync(email),
     verifyPasswordOtp: (email: string, otp: string) =>
-      runAction('verifyPasswordOtp', () => verifyPasswordOtpRequest(email, otp)),
+      verifyPasswordOtpMutation.mutateAsync({ email, otp }),
     resetPassword: (
       email: string,
       otp: string,
       password: string,
       passwordConfirmation: string
     ) =>
-      runAction('resetPassword', () =>
-        resetPasswordWithOtpRequest(email, otp, password, passwordConfirmation)
-      ),
-    logout: () =>
-      runAction('logout', async () => {
-        if (role === 'admin') {
-          await logoutAdminRequest();
-          return;
-        }
-
-        if (role === 'provider') {
-          await logoutProviderRequest();
-          return;
-        }
-
-        await clearSession();
+      resetPasswordMutation.mutateAsync({
+        email,
+        otp,
+        password,
+        passwordConfirmation,
       }),
+    logout: () => logoutMutation.mutateAsync(),
   };
 }

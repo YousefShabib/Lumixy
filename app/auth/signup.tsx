@@ -1,63 +1,90 @@
 import { Link, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import React, { useEffect } from 'react';
+import { Text, useWindowDimensions, View } from 'react-native';
+import { useForm } from 'react-hook-form';
 
-import AuthField from '@/components/auth/AuthField';
+import AuthBrandHeader from '@/components/auth/AuthBrandHeader';
+import AuthControlledField from '@/components/auth/AuthControlledField';
 import AuthPrimaryButton from '@/components/auth/AuthPrimaryButton';
 import AuthScreenShell from '@/components/auth/AuthScreenShell';
-import { authShared } from '@/components/auth/authTheme';
+import { authClassNames } from '@/components/auth/authTheme';
+import {
+  EMAIL_REGEX,
+  PASSWORD_MIN_LENGTH,
+  PHONE_REGEX,
+  authValidationMessages,
+} from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
 import { getRouteForRole } from '@/services/authRoutes';
-import { colors, typography } from '@/theme';
+import { colors } from '@/theme';
+
+type SignupFormValues = {
+  confirmPassword: string;
+  email: string;
+  fullName: string;
+  password: string;
+  phone: string;
+};
 
 export default function SignupScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 370 || height < 760;
-  const logoSize = width < 370 ? 30 : width < 430 ? 32 : 34;
+  const brandSpacingClassName = isSmallScreen ? 'mb-[10px]' : 'mb-[14px]';
+  const logoClassName = width < 370 ? 'text-[30px]' : width < 430 ? 'text-[32px]' : 'text-[34px]';
   const isVerySmallScreen = width < 350;
-  const titleSize = isVerySmallScreen ? 23 : width < 370 ? 24 : width < 430 ? 26 : 28;
-  const subtitleSize = width < 370 ? 12 : 13;
-  const { error, clearError, isLoading, register, setError } = useAuth();
-
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const titleClassName = isVerySmallScreen
+    ? 'text-[23px] leading-[35px]'
+    : width < 370
+      ? 'text-[24px] leading-[36px]'
+      : width < 430
+        ? 'text-[26px] leading-[38px]'
+        : 'text-[28px] leading-[40px]';
+  const subtitleClassName =
+    width < 370 ? 'text-[12px] leading-[20px]' : 'text-[13px] leading-[21px]';
+  const titleBlockClassName = isSmallScreen ? 'mb-3 items-end' : 'mb-4 items-end';
+  const fieldsGapClassName = isSmallScreen ? 'w-full gap-3' : 'w-full gap-[14px]';
+  const { error, clearError, isLoading, register } = useAuth();
+  const {
+    control,
+    formState: { isValid },
+    getValues,
+    handleSubmit,
+    trigger,
+    watch,
+  } = useForm<SignupFormValues>({
+    defaultValues: {
+      confirmPassword: '',
+      email: '',
+      fullName: '',
+      password: '',
+      phone: '',
+    },
+    mode: 'onChange',
+  });
+  const passwordValue = watch('password');
+  const confirmPasswordValue = watch('confirmPassword');
   const loading = isLoading('register');
-  const canSubmit =
-    Boolean(fullName.trim() && email.trim() && password && confirmPassword) &&
-    password === confirmPassword &&
-    !loading;
+  const canSubmit = isValid && !loading;
 
-  const handleSignup = async () => {
-    if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
-      setError('يرجى تعبئة الحقول المطلوبة.');
-      return;
+  useEffect(() => {
+    if (confirmPasswordValue) {
+      void trigger('confirmPassword');
     }
+  }, [confirmPasswordValue, passwordValue, trigger]);
 
-    if (password !== confirmPassword) {
-      setError('تأكيد كلمة المرور غير مطابق.');
-      return;
-    }
-
+  const onSubmit = handleSubmit(async (values) => {
     try {
       const response = await register({
-        full_name: fullName.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        password,
-        password_confirmation: confirmPassword,
+        full_name: values.fullName.trim(),
+        email: values.email.trim(),
+        phone: values.phone.trim(),
+        password: values.password,
+        password_confirmation: values.confirmPassword,
       });
       router.replace(getRouteForRole(response.user.role));
     } catch {}
-  };
+  });
 
   return (
     <AuthScreenShell
@@ -66,164 +93,127 @@ export default function SignupScreen() {
       topPaddingLarge={36}
       bottomPaddingSmall={16}
       bottomPaddingLarge={20}
-      contentContainerStyle={styles.contentContainer}>
-      <View style={[styles.logoWrap, { marginBottom: isSmallScreen ? 10 : 14 }]}>
-        <Text style={[styles.logo, { fontSize: logoSize }]}>LUMIXY</Text>
-        <Text style={styles.subLogo}>PREMIUM PROVIDER PORTAL</Text>
-      </View>
+      contentContainerStyle={{ paddingHorizontal: 2 }}>
+      <AuthBrandHeader
+        brandColor={colors.primary}
+        containerClassName={brandSpacingClassName}
+        logoClassName={logoClassName}
+        subtitleClassName="mt-[2px] text-[9px] font-semibold tracking-[1.8px]"
+      />
 
-      <View style={styles.panel}>
-        <View style={[styles.headerWrap, { marginBottom: isSmallScreen ? 12 : 16 }]}>
-          <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleSize + 12 }]}>
+      <View className={`${authClassNames.screen.panel} mt-[10px] px-3`}>
+        <View className={titleBlockClassName}>
+          <Text className={`${authClassNames.text.title} ${titleClassName} pt-[6px] text-right`}>
             إنشاء حساب جديد
           </Text>
-          <Text style={[styles.subtitle, { fontSize: subtitleSize, lineHeight: subtitleSize + 8 }]}>
+          <Text className={`${authClassNames.text.subtitle} ${subtitleClassName} mt-1 text-right`}>
             انضم إلى شبكة مزودي الخدمات في لومكسي وابدأ عملك اليوم
           </Text>
         </View>
 
-        <View style={[styles.form, { gap: isSmallScreen ? 12 : 14 }]}>
-          <AuthField
+        <View className={fieldsGapClassName}>
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="fullName"
+            rules={{
+              minLength: {
+                message: authValidationMessages.nameMinLength,
+                value: 2,
+              },
+              required: authValidationMessages.requiredFullName,
+            }}
             label="الاسم الكامل"
             placeholder="أدخل اسمك الكامل"
             icon="person-outline"
-            value={fullName}
-            onChangeText={(value) => {
-              setFullName(value);
-              if (error) clearError();
-            }}
           />
-          <AuthField
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="email"
+            rules={{
+              pattern: {
+                message: authValidationMessages.invalidEmail,
+                value: EMAIL_REGEX,
+              },
+              required: authValidationMessages.requiredEmail,
+            }}
             label="البريد الإلكتروني"
             placeholder="example@domain.com"
             keyboardType="email-address"
             icon="mail-outline"
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              if (error) clearError();
-            }}
           />
-          <AuthField
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="phone"
+            rules={{
+              validate: (value) =>
+                value.trim().length === 0 ||
+                PHONE_REGEX.test(value) ||
+                authValidationMessages.invalidPhone,
+            }}
             label="رقم الهاتف"
             placeholder="+970 5xx xxx xxx"
             keyboardType="phone-pad"
             icon="call-outline"
-            value={phone}
-            onChangeText={(value) => {
-              setPhone(value);
-              if (error) clearError();
-            }}
           />
-          <AuthField
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="password"
+            rules={{
+              minLength: {
+                message: authValidationMessages.passwordMinLength,
+                value: PASSWORD_MIN_LENGTH,
+              },
+              required: authValidationMessages.requiredPassword,
+            }}
             label="كلمة المرور"
             placeholder="••••••••"
             secureTextEntry
             icon="lock-closed-outline"
-            value={password}
-            onChangeText={(value) => {
-              setPassword(value);
-              if (error) clearError();
-            }}
           />
-          <AuthField
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="confirmPassword"
+            rules={{
+              required: authValidationMessages.requiredConfirmPassword,
+              validate: (value) =>
+                value === getValues('password') || authValidationMessages.confirmPasswordMismatch,
+            }}
             label="تأكيد كلمة المرور"
             placeholder="••••••••"
             secureTextEntry
             icon="shield-checkmark-outline"
-            value={confirmPassword}
-            onChangeText={(value) => {
-              setConfirmPassword(value);
-              if (error) clearError();
-            }}
           />
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text className={authClassNames.text.error}>{error}</Text> : null}
 
         <AuthPrimaryButton
           title={canSubmit ? 'إنشاء الحساب' : 'أكمل الحقول المطلوبة'}
           loading={loading}
           disabled={!canSubmit}
-          onPress={handleSignup}
+          onPress={onSubmit}
           marginTop={12}
         />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>لديك حساب بالفعل؟ </Text>
-          <Link href="/auth/login" style={styles.footerLink}>
-            تسجيل الدخول
+        <View className="mt-3 flex-row-reverse items-center justify-center">
+          <Text className="font-cairo-bold text-[14px] text-textMuted">لديك حساب بالفعل؟ </Text>
+          <Link href="/auth/login" asChild>
+            <Text className="font-cairo-bold text-[14px] font-bold text-[#C5B8FF]">
+              تسجيل الدخول
+            </Text>
           </Link>
         </View>
       </View>
     </AuthScreenShell>
   );
 }
-
-const styles = StyleSheet.create({
-  contentContainer: {
-    paddingHorizontal: 2,
-    flexGrow: 1,
-  },
-  logoWrap: {
-    alignItems: 'center',
-  },
-  logo: {
-    color: colors.primary,
-    fontFamily: typography.fontFamily.bold,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  subLogo: {
-    color: '#A2A0B3',
-    marginTop: 2,
-    fontSize: 9,
-    letterSpacing: 1.8,
-    fontWeight: '600',
-  },
-  headerWrap: {
-    alignItems: 'flex-end',
-  },
-  panel: {
-    ...authShared.panel,
-    marginTop: 10,
-    paddingHorizontal: 12,
-  },
-  title: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontWeight: '800',
-    textAlign: 'right',
-    paddingTop: 6,
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    textAlign: 'right',
-    marginTop: 4,
-    fontFamily: typography.fontFamily.bold,
-  },
-  form: {
-    width: '100%',
-  },
-  errorText: {
-    ...authShared.errorText,
-  },
-  footer: {
-    marginTop: 12,
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    fontFamily: typography.fontFamily.bold,
-  },
-  footerLink: {
-    color: '#C5B8FF',
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 14,
-    fontWeight: '700',
-    textDecorationLine: 'none',
-  },
-});

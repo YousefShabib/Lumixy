@@ -1,45 +1,65 @@
 import { Link, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import React from 'react';
+import { Text, useWindowDimensions, View } from 'react-native';
+import { useForm } from 'react-hook-form';
 
-import AuthField from '@/components/auth/AuthField';
+import AuthBrandHeader from '@/components/auth/AuthBrandHeader';
+import AuthControlledField from '@/components/auth/AuthControlledField';
 import AuthPrimaryButton from '@/components/auth/AuthPrimaryButton';
 import AuthScreenShell from '@/components/auth/AuthScreenShell';
-import { authShared } from '@/components/auth/authTheme';
+import { authClassNames } from '@/components/auth/authTheme';
+import { EMAIL_REGEX, authValidationMessages } from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
 import { getRouteForRole } from '@/services/authRoutes';
-import { colors, typography } from '@/theme';
+import { colors } from '@/theme';
+
+type LoginFormValues = {
+  email: string;
+  password: string;
+};
 
 export default function LoginScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 370 || height < 760;
-  const loginLogoSize = width < 370 ? 34 : 40;
-  const loginTitleSize = width < 370 ? 26 : width < 430 ? 30 : 32;
-  const loginSubtitleSize = isSmallScreen ? 13 : 15;
-  const { error, clearError, isLoading, login, setError } = useAuth();
-
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const brandSpacingClassName = isSmallScreen ? 'mb-6' : 'mb-9';
+  const loginLogoClassName = width < 370 ? 'text-[34px]' : 'text-[40px]';
+  const loginTitleClassName =
+    width < 370
+      ? 'text-[26px] leading-[38px]'
+      : width < 430
+        ? 'text-[30px] leading-[42px]'
+        : 'text-[32px] leading-[44px]';
+  const loginSubtitleClassName = isSmallScreen
+    ? 'text-[13px] leading-[22px]'
+    : 'text-[15px] leading-[26px]';
+  const fieldsGapClassName = isSmallScreen ? 'w-full gap-3' : 'w-full gap-4';
+  const { error, clearError, isLoading, login } = useAuth();
+  const {
+    control,
+    handleSubmit,
+    watch,
+  } = useForm<LoginFormValues>({
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+    mode: 'onChange',
+  });
+  const emailValue = watch('email');
+  const passwordValue = watch('password');
   const loading = isLoading('login');
-  const canSubmit = Boolean(email.trim() && password.trim()) && !loading;
+  const canSubmit = Boolean(emailValue.trim() && passwordValue.trim()) && !loading;
 
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('يرجى إدخال البريد الإلكتروني وكلمة المرور.');
-      return;
-    }
-
+  const onSubmit = handleSubmit(async (values) => {
     try {
-      const response = await login({ email: email.trim(), password });
+      const response = await login({
+        email: values.email.trim(),
+        password: values.password,
+      });
       router.replace(getRouteForRole(response.user.role));
     } catch {}
-  };
+  });
 
   return (
     <AuthScreenShell
@@ -48,152 +68,85 @@ export default function LoginScreen() {
       topPaddingLarge={40}
       bottomPaddingSmall={24}
       bottomPaddingLarge={36}
-      contentContainerStyle={styles.contentContainer}>
-      <View style={[styles.logoWrap, { marginBottom: isSmallScreen ? 24 : 36 }]}>
-        <Text style={[styles.logo, { fontSize: loginLogoSize }]}>LUMIXY</Text>
-        <Text style={styles.subLogo}>PREMIUM PROVIDER PORTAL</Text>
-      </View>
+      contentContainerStyle={{ paddingHorizontal: 6 }}>
+      <AuthBrandHeader
+        brandColor={colors.primary}
+        containerClassName={brandSpacingClassName}
+        logoClassName={loginLogoClassName}
+        subtitleClassName="mt-[6px] text-[11px] tracking-[2.8px]"
+      />
 
-      <View style={styles.panel}>
-        <View style={styles.headerWrap}>
-          <Text style={[styles.title, { fontSize: loginTitleSize, lineHeight: loginTitleSize + 12 }]}>تسجيل الدخول</Text>
-          <Text style={[styles.subtitle, { fontSize: loginSubtitleSize, lineHeight: isSmallScreen ? 22 : 26 }]}>
+      <View className={`${authClassNames.screen.panel} mt-2 rounded-[22px] py-[18px]`}>
+        <View className="mb-5 items-end">
+          <Text className={`${authClassNames.text.title} ${loginTitleClassName} text-right`}>
+            تسجيل الدخول
+          </Text>
+          <Text
+            className={`${authClassNames.text.subtitle} ${loginSubtitleClassName} mt-[10px] text-right`}>
             أهلًا بك. أدخل بريدك الإلكتروني وكلمة المرور وسنوجهك لحسابك مباشرة
           </Text>
         </View>
 
-        <View style={[styles.form, { gap: isSmallScreen ? 12 : 16 }]}>
-          <AuthField
+        <View className={fieldsGapClassName}>
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="email"
+            rules={{
+              pattern: {
+                message: authValidationMessages.invalidEmail,
+                value: EMAIL_REGEX,
+              },
+              required: authValidationMessages.requiredEmail,
+            }}
             label="البريد الإلكتروني"
             placeholder="provider@lumixy.ps"
             icon="mail-outline"
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              if (error) clearError();
-            }}
             keyboardType="email-address"
           />
-          <AuthField
+          <AuthControlledField
+            authError={error}
+            clearAuthError={clearError}
+            control={control}
+            name="password"
+            rules={{
+              required: authValidationMessages.requiredPassword,
+            }}
             label="كلمة المرور"
             placeholder="••••••••"
             secureTextEntry
             icon="lock-closed-outline"
-            value={password}
-            onChangeText={(value) => {
-              setPassword(value);
-              if (error) clearError();
-            }}
           />
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text className={authClassNames.text.error}>{error}</Text> : null}
 
-        <Link href="/auth/forgot-password" style={styles.forgotLink}>
-          نسيت كلمة المرور؟
+        <Link href="/auth/forgot-password" asChild>
+          <Text className="mt-3 self-end text-[14px] text-[#AFA4C5]">نسيت كلمة المرور؟</Text>
         </Link>
 
         <AuthPrimaryButton
           title={canSubmit ? 'تسجيل الدخول' : 'أدخل البيانات للمتابعة'}
           loading={loading}
           disabled={!canSubmit}
-          onPress={handleLogin}
+          onPress={onSubmit}
           marginTop={isSmallScreen ? 14 : 18}
         />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>ليس لديك حساب ؟ </Text>
-          <Link href="/auth/signup" style={styles.footerLink}>
-            سجل الآن
+        <View className="mt-6 flex-row-reverse items-center justify-center">
+          <Text className="font-cairo-bold text-[15px] text-textMuted">ليس لديك حساب ؟ </Text>
+          <Link href="/auth/signup" asChild>
+            <Text className="font-cairo-bold text-[16px] font-bold text-[#E6DEFF]">سجل الآن</Text>
           </Link>
         </View>
 
-        <Link href="/entry" style={styles.backHomeLink}>
-          العودة إلى الصفحة الرئيسية
+        <Link href="/entry" asChild>
+          <Text className="mt-[34px] self-center font-cairo-bold text-[14px] text-[#8B8DAA]">
+            العودة إلى الصفحة الرئيسية
+          </Text>
         </Link>
       </View>
     </AuthScreenShell>
   );
 }
-
-const styles = StyleSheet.create({
-  contentContainer: {
-    paddingHorizontal: 6,
-    flexGrow: 1,
-  },
-  logoWrap: {
-    alignItems: 'center',
-  },
-  logo: {
-    color: colors.primary,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  subLogo: {
-    color: '#A2A0B3',
-    marginTop: 6,
-    fontSize: 11,
-    letterSpacing: 2.8,
-    fontWeight: '600',
-    fontFamily: typography.fontFamily.bold,
-  },
-  headerWrap: {
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  panel: {
-    ...authShared.panel,
-    marginTop: 8,
-    paddingVertical: 18,
-    borderRadius: 22,
-  },
-  title: {
-    color: colors.text,
-    fontWeight: '800',
-    fontFamily: typography.fontFamily.bold,
-    textAlign: 'right',
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    textAlign: 'right',
-    marginTop: 10,
-    fontFamily: typography.fontFamily.bold,
-  },
-  form: {
-    width: '100%',
-  },
-  errorText: {
-    ...authShared.errorText,
-  },
-  forgotLink: {
-    marginTop: 12,
-    alignSelf: 'flex-end',
-    color: '#AFA4C5',
-    fontSize: 14,
-  },
-  footer: {
-    marginTop: 24,
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    color: colors.textMuted,
-    fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
-  },
-  footerLink: {
-    color: '#E6DEFF',
-    fontSize: 16,
-    fontWeight: '700',
-    textDecorationLine: 'none',
-    fontFamily: typography.fontFamily.bold,
-  },
-  backHomeLink: {
-    marginTop: 34,
-    alignSelf: 'center',
-    color: '#8B8DAA',
-    fontSize: 14,
-    fontFamily: typography.fontFamily.bold,
-  },
-});

@@ -1,17 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { colors, typography } from '@/theme';
+import { authClassNames } from '@/components/auth/authTheme';
+import { colors } from '@/theme';
 
-type Props = {
+export type AuthFieldProps = {
   label: string;
   placeholder: string;
   value: string;
   onChangeText: (value: string) => void;
+  onBlur?: () => void;
   icon?: React.ComponentProps<typeof Ionicons>['name'];
   secureTextEntry?: boolean;
   keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'number-pad';
+  errorMessage?: string;
 };
 
 export default function AuthField({
@@ -19,77 +22,51 @@ export default function AuthField({
   placeholder,
   value,
   onChangeText,
+  onBlur,
   icon,
   secureTextEntry,
   keyboardType = 'default',
-}: Props) {
+  errorMessage,
+}: AuthFieldProps) {
   const [isHidden, setIsHidden] = useState(Boolean(secureTextEntry));
+  const inputClassName = `${authClassNames.field.input} ${
+    secureTextEntry ? authClassNames.field.inputWithEye : authClassNames.field.inputWithoutEye
+  } ${errorMessage ? authClassNames.field.inputError : ''}`;
 
   return (
-    <View style={styles.fieldWrap}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputWrap}>
-        {icon ? <Ionicons name={icon} size={19} color="#8E6AC9" style={styles.inputIcon} /> : null}
+    <View className={authClassNames.field.wrapper}>
+      <Text className={authClassNames.field.label}>{label}</Text>
+      <View className={authClassNames.field.inputWrap}>
+        {icon ? (
+          <View className="absolute right-[14px] top-[18px] z-[1]">
+            <Ionicons name={icon} size={19} color={colors.primaryLight} />
+          </View>
+        ) : null}
         {secureTextEntry ? (
-          <TouchableOpacity style={styles.eyeButton} onPress={() => setIsHidden((prev) => !prev)} activeOpacity={0.8}>
-            <Ionicons name={isHidden ? 'eye-off-outline' : 'eye-outline'} size={20} color="#A88DDF" />
+          <TouchableOpacity
+            className="absolute left-[14px] top-[17px] z-[2]"
+            onPress={() => setIsHidden((prev) => !prev)}
+            activeOpacity={0.8}>
+            <Ionicons
+              name={isHidden ? 'eye-off-outline' : 'eye-outline'}
+              size={20}
+              color={colors.accent}
+            />
           </TouchableOpacity>
         ) : null}
         <TextInput
           value={value}
           onChangeText={onChangeText}
+          onBlur={onBlur}
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
           secureTextEntry={isHidden}
           keyboardType={keyboardType}
           autoCapitalize="none"
-          style={[styles.input, secureTextEntry ? styles.inputWithEye : undefined]}
-          textAlign="right"
+          className={inputClassName}
         />
       </View>
+      {errorMessage ? <Text className={authClassNames.field.error}>{errorMessage}</Text> : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  fieldWrap: {
-    alignItems: 'flex-end',
-  },
-  label: {
-    color: '#B6A9D2',
-    fontSize: 14,
-    marginBottom: 8,
-    fontFamily: typography.fontFamily.bold,
-  },
-  inputWrap: {
-    width: '100%',
-    position: 'relative',
-  },
-  input: {
-    width: '100%',
-    height: 56,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingRight: 46,
-    paddingLeft: 16,
-    color: colors.text,
-    backgroundColor: colors.surface,
-    fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
-  },
-  inputWithEye: {
-    paddingLeft: 46,
-  },
-  inputIcon: {
-    position: 'absolute',
-    right: 14,
-    top: 18,
-  },
-  eyeButton: {
-    position: 'absolute',
-    left: 14,
-    top: 17,
-    zIndex: 2,
-  },
-});

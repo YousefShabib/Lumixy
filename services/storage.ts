@@ -1,95 +1,198 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const TOKEN_STORAGE_KEY = 'lumixy-auth-token';
-const AUTH_SESSION_STORAGE_KEY = 'lumixy-auth-session';
+const STORAGE_KEYS = {
+  token: 'token',
+  user: 'user',
+} as const;
 
 export type StoredAuthRole = 'admin' | 'provider';
+
+export type StoredAuthUser = Record<string, unknown> & {
+  role?: StoredAuthRole;
+};
 
 export type StoredAuthSession = {
   token: string;
   role: StoredAuthRole;
-  user: Record<string, unknown>;
+  user: StoredAuthUser;
 };
 
 let tokenCache: string | null = null;
-let sessionCache: StoredAuthSession | null = null;
+let userCache: StoredAuthUser | null = null;
 let tokenHydrated = false;
-let sessionHydrated = false;
+let userHydrated = false;
 
-async function hydrateTokenFromStore() {
+function parseStoredUser(data: string | null) {
+  if (!data) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(data) as StoredAuthUser;
+  } catch {
+    return null;
+  }
+}
+
+function setTokenCache(token: string | null) {
+  tokenCache = token;
+  tokenHydrated = true;
+}
+
+function setUserCache(user: StoredAuthUser | null) {
+  userCache = user;
+  userHydrated = true;
+}
+
+async function hydrateTokenCache() {
   if (tokenHydrated) {
     return;
   }
 
-  tokenHydrated = true;
-
   try {
-    const token = await SecureStore.getItemAsync(TOKEN_STORAGE_KEY);
-    tokenCache = token || null;
+    setTokenCache(await SecureStore.getItemAsync(STORAGE_KEYS.token));
   } catch {
-    tokenCache = null;
+    setTokenCache(null);
   }
 }
 
-async function hydrateSessionFromStore() {
-  if (sessionHydrated) {
+async function hydrateUserCache() {
+  if (userHydrated) {
     return;
   }
 
-  sessionHydrated = true;
+  try {
+    const data = await AsyncStorage.getItem(STORAGE_KEYS.user);
+    const parsedUser = parseStoredUser(data);
+    if (parsedUser) {
+      setUserCache(parsedUser);
+      return;
+    }
+  } catch {
+    // Fall through to SecureStore fallback.
+  }
 
   try {
-    const sessionText = await SecureStore.getItemAsync(AUTH_SESSION_STORAGE_KEY);
-    sessionCache = sessionText ? (JSON.parse(sessionText) as StoredAuthSession) : null;
-    tokenCache = sessionCache?.token ?? tokenCache;
+    const secureData = await SecureStore.getItemAsync(STORAGE_KEYS.user);
+    setUserCache(parseStoredUser(secureData));
   } catch {
-    sessionCache = null;
+    setUserCache(null);
   }
 }
 
-export async function getStoredToken() {
-  await hydrateSessionFromStore();
-  await hydrateTokenFromStore();
-  return sessionCache?.token ?? tokenCache;
+async function saveSession(session: StoredAuthSession) {
+  await Promise.all([
+    StorageService.saveToken(session.token),
+    StorageService.saveUser({
+      ...session.user,
+      role: session.role,
+    }),
+  ]);
 }
 
-export async function saveToken(token: string) {
-  tokenCache = token;
-  tokenHydrated = true;
-  await SecureStore.setItemAsync(TOKEN_STORAGE_KEY, token);
-}
+async function getSession() {
+  const [token, user] = await Promise.all([StorageService.getToken(), StorageService.getUser()]);
 
-export async function clearToken() {
-  tokenCache = null;
-  tokenHydrated = true;
-
-  try {
-    await SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY);
-  } catch {
-    // Ignore storage cleanup errors.
+  if (!token || !user || !user.role) {
+    return null;
   }
+
+  return {
+    token,
+    role: user.role,
+    user,
+  } satisfies StoredAuthSession;
 }
 
-export async function getStoredAuthSession() {
-  await hydrateSessionFromStore();
-  return sessionCache;
+async function removeSession() {
+  await Promise.all([StorageService.removeToken(), StorageService.removeUser()]);
 }
 
-export async function saveAuthSession(session: StoredAuthSession) {
-  sessionCache = session;
-  sessionHydrated = true;
-  await saveToken(session.token);
-  await SecureStore.setItemAsync(AUTH_SESSION_STORAGE_KEY, JSON.stringify(session));
-}
+const StorageService = {
+  async saveToken(token: string) {
+    setTokenCache(token);
 
-export async function clearAuthSession() {
-  sessionCache = null;
-  sessionHydrated = true;
-  await clearToken();
+    try {
+      await SecureStore.setItemAsync(STORAGE_KEYS.token, token);
+    } catch {
+      // Keep the in-memory token so auth can continue in this session.
+    }
+  },
 
-  try {
-    await SecureStore.deleteItemAsync(AUTH_SESSION_STORAGE_KEY);
-  } catch {
-    // Ignore storage cleanup errors.
-  }
-}
+  async getToken() {
+    await hydrateTokenCache();
+    return tokenCache;
+  },
+
+  async removeToken() {
+    setTokenCache(null);
+
+    try {
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.token);
+    } catch {
+      // Ignore storage cleanup errors.
+    }
+  },
+
+  async saveUser(user: StoredAuthUser) {
+    setUserCache(user);
+    const serializedUser = JSON.stringify(user);
+
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.user, serializedUser);
+      return;
+    } catch {
+      // Fall back to SecureStore when AsyncStorage isn't available.
+    }
+
+    try {
+      await SecureStore.setItemAsync(STORAGE_KEYS.user, serializedUser);
+    } catch {
+      // Keep the in-memory user so auth can continue in this session.
+    }
+  },
+
+  async getUser() {
+    await hydrateUserCache();
+    return userCache;
+  },
+
+  async removeUser() {
+    setUserCache(null);
+
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.user);
+    } catch {
+      // Ignore storage cleanup errors.
+    }
+
+    try {
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.user);
+    } catch {
+      // Ignore storage cleanup errors.
+    }
+  },
+
+  async clearAsyncStorage() {
+    setUserCache(null);
+
+    try {
+      await AsyncStorage.clear();
+    } catch {
+      // Ignore storage cleanup errors.
+    }
+
+    try {
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.user);
+    } catch {
+      // Ignore storage cleanup errors.
+    }
+  },
+
+  getSession,
+  saveSession,
+  removeSession,
+};
+
+export default StorageService;

@@ -1,24 +1,27 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import {
   ActivityIndicator,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Controller, useForm } from 'react-hook-form';
 
+import AuthBackButton from '@/components/auth/AuthBackButton';
 import AuthScreenShell from '@/components/auth/AuthScreenShell';
-import { authShared } from '@/components/auth/authTheme';
+import { authClassNames, authStyles } from '@/components/auth/authTheme';
+import { OTP_LENGTH, authValidationMessages } from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
 import useOtpTimer from '@/hooks/useOtpTimer';
-import { colors, typography } from '@/theme';
+import { colors } from '@/theme';
 
-
-const OTP_LENGTH = 6;
+type VerifyCodeFormValues = {
+  otp: string;
+};
 
 export default function VerifyCodeScreen() {
   const router = useRouter();
@@ -27,59 +30,52 @@ export default function VerifyCodeScreen() {
 
   const { width, height } = useWindowDimensions();
   const isSmallScreen = width < 370 || height < 760;
-  const otpBoxSize = width < 350 ? 42 : width < 390 ? 46 : 50;
-  const otpGap = width < 350 ? 6 : width < 430 ? 8 : 10;
+  const iconCardMarginClassName = isSmallScreen ? 'mt-2' : 'mt-[18px]';
+  const titleClassName = isSmallScreen ? 'text-[28px] leading-[48px]' : 'text-[32px] leading-[48px]';
+  const subtitleClassName =
+    isSmallScreen ? 'text-[12px] leading-[25px]' : 'text-[13px] leading-[25px]';
+  const otpGapClassName = width < 350 ? 'gap-[6px]' : width < 430 ? 'gap-2' : 'gap-[10px]';
+  const otpSizeClassName =
+    width < 350
+      ? `w-[42px] ${isSmallScreen ? 'h-[58px]' : 'h-[62px]'}`
+      : width < 390
+        ? `w-[46px] ${isSmallScreen ? 'h-[58px]' : 'h-[62px]'}`
+        : `w-[50px] ${isSmallScreen ? 'h-[58px]' : 'h-[62px]'}`;
   const largeIconSize = isSmallScreen ? 42 : 50;
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const { error, clearError, isLoading, sendForgotPasswordOtp, setError, verifyPasswordOtp } =
+    useAuth();
   const {
-    error,
-    isLoading,
-    setError,
-    sendForgotPasswordOtp,
-    verifyPasswordOtp,
-  } = useAuth();
+    control,
+    formState: { isValid },
+    handleSubmit,
+    watch,
+  } = useForm<VerifyCodeFormValues>({
+    defaultValues: {
+      otp: '',
+    },
+    mode: 'onChange',
+  });
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const otpCode = watch('otp');
   const { formattedTime, canResend: timerReady, restartTimer } = useOtpTimer(10 * 60);
   const isConfirming = isLoading('verifyPasswordOtp');
   const isResending = isLoading('sendForgotPasswordOtp');
-
-  const handleChange = (value: string, index: number) => {
-    const cleanValue = value.replace(/\D/g, '').slice(-1);
-    const next = [...otp];
-    next[index] = cleanValue;
-    setOtp(next);
-
-    if (cleanValue && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyPress = (key: string, index: number) => {
-    if (key === 'Backspace' && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const otpCode = otp.join('');
-  const isComplete = otp.every((d) => d.length === 1);
-  const canConfirm = isComplete && !isConfirming;
+  const canConfirm = isValid && !isConfirming;
+  const isOtpComplete = otpCode.length === OTP_LENGTH;
+  const isConfirmButtonActive = canConfirm && isOtpComplete;
   const canResend = timerReady && !isResending && !isConfirming;
 
-  const handleConfirm = async () => {
+  const onConfirm = handleSubmit(async (values) => {
     if (!email) {
       setError('يرجى الرجوع وإدخال البريد الإلكتروني.');
       return;
     }
-    if (!isComplete) {
-      setError('يرجى إدخال رمز التحقق كاملًا.');
-      return;
-    }
 
     try {
-      await verifyPasswordOtp(email, otpCode);
-      router.push({ pathname: '/auth/reset-password', params: { email, otp: otpCode } });
+      await verifyPasswordOtp(email, values.otp);
+      router.push({ pathname: '/auth/reset-password', params: { email, otp: values.otp } });
     } catch {}
-  };
+  });
 
   const handleResend = async () => {
     if (!email) {
@@ -98,187 +94,148 @@ export default function VerifyCodeScreen() {
       topPaddingSmall={20}
       topPaddingLarge={34}
       bottomPaddingSmall={24}
-      bottomPaddingLarge={34}
-      contentContainerStyle={styles.content}>
-      <View style={styles.topRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.85}>
-          <Ionicons name="arrow-forward" size={18} color="#B8B0D8" />
-        </TouchableOpacity>
+      bottomPaddingLarge={34}>
+      <AuthBackButton onPress={() => router.back()} />
+
+      <View
+        className={`${authClassNames.screen.iconCard} ${iconCardMarginClassName}`}
+        style={[authStyles.iconCardShadow]}>
+        <Ionicons name="lock-closed-outline" size={largeIconSize} color={colors.accent} />
       </View>
 
-      <View style={[styles.lockCard, { marginTop: isSmallScreen ? 8 : 18 }]}>
-        <Ionicons name="lock-closed-outline" size={largeIconSize} color="#B28CFF" />
-      </View>
-
-      <View style={styles.header}>
-        <Text style={[styles.title, { fontSize: isSmallScreen ? 28 : 32 }]}>أدخل رمز التحقق</Text>
-        <Text style={[styles.subtitle, { fontSize: isSmallScreen ? 12 : 13 }]}>
+      <View className="mt-[22px] items-center">
+        <Text className={`${authClassNames.text.title} ${titleClassName} pt-[10px] text-center`}>
+          أدخل رمز التحقق
+        </Text>
+        <Text
+          className={`${authClassNames.text.subtitle} ${subtitleClassName} mt-[10px] text-center`}>
           تم إرسال رمز مكوّن من 6 أرقام إلى
           {'\n'}
           {email || 'البريد الإلكتروني'}
         </Text>
       </View>
 
-      <View style={styles.panel}>
-        <View style={[styles.otpRow, { gap: otpGap }]}>
-          {otp.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(el) => {
-                inputRefs.current[index] = el;
-              }}
-              value={digit}
-              onChangeText={(text) => handleChange(text, index)}
-              onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-              keyboardType="number-pad"
-              maxLength={1}
-              style={[
-                styles.otpInput,
-                { width: otpBoxSize, height: isSmallScreen ? 58 : 62 },
-                digit ? styles.otpFilled : undefined,
-              ]}
-              textAlign="center"
-              placeholder=""
-              placeholderTextColor="#7A6A9D"
-              selectTextOnFocus
-            />
-          ))}
+      <View className={`${authClassNames.screen.panel} mt-[18px]`}>
+        <Controller
+          control={control}
+          name="otp"
+          rules={{
+            minLength: {
+              message: authValidationMessages.incompleteOtp,
+              value: OTP_LENGTH,
+            },
+            required: authValidationMessages.requiredOtp,
+            validate: (value) =>
+              new RegExp(`^\\d{${OTP_LENGTH}}$`).test(value) || authValidationMessages.invalidOtp,
+          }}
+          render={({ field, fieldState }) => {
+            const digits = Array.from({ length: OTP_LENGTH }, (_, index) => field.value[index] ?? '');
+
+            const handleChange = (value: string, index: number) => {
+              const cleanValue = value.replace(/\D/g, '').slice(-1);
+              const nextDigits = [...digits];
+              nextDigits[index] = cleanValue;
+
+              field.onChange(nextDigits.join(''));
+              if (error) {
+                clearError();
+              }
+
+              if (cleanValue && index < OTP_LENGTH - 1) {
+                inputRefs.current[index + 1]?.focus();
+              }
+            };
+
+            const handleKeyPress = (key: string, index: number) => {
+              if (key === 'Backspace' && !digits[index] && index > 0) {
+                inputRefs.current[index - 1]?.focus();
+              }
+            };
+
+            return (
+              <>
+                <View className={`mt-6 flex-row justify-center ${otpGapClassName}`}>
+                  {digits.map((digit, index) => (
+                    <TextInput
+                      key={index}
+                      ref={(element) => {
+                        inputRefs.current[index] = element;
+                      }}
+                      value={digit}
+                      onBlur={field.onBlur}
+                      onChangeText={(text) => handleChange(text, index)}
+                      onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      className={`${otpSizeClassName} rounded-[14px] border bg-surface text-center font-cairo-bold text-[20px] font-bold text-[#F3EAFF] ${
+                        digit ? 'border-primaryLight bg-surfaceSecondary' : 'border-border'
+                      }`}
+                      placeholder=""
+                      placeholderTextColor="#7A6A9D"
+                      selectTextOnFocus
+                    />
+                  ))}
+                </View>
+                {fieldState.error ? (
+                  <Text className={authClassNames.field.error}>{fieldState.error.message}</Text>
+                ) : null}
+              </>
+            );
+          }}
+        />
+
+        <View className="mt-4 h-[38px] min-w-[96px] self-center items-center justify-center rounded-[20px] border border-border bg-surface px-4">
+          <Text className="font-cairo-bold text-[16px] text-[#C9B3FF]">{formattedTime}</Text>
         </View>
 
-        <View style={styles.timerWrap}>
-          <Text style={styles.timerText}>{formattedTime}</Text>
-        </View>
-
-        <TouchableOpacity activeOpacity={0.85} style={[styles.resendWrap, !canResend && styles.resendWrapDisabled]} onPress={handleResend} disabled={!canResend}>
-          {isResending ? <ActivityIndicator color="#BFA8F6" size="small" /> : <Text style={styles.resendText}>{canResend ? 'إعادة إرسال الرمز' : 'يمكن الإرسال بعد انتهاء الوقت'}</Text>}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          className={`mt-5 self-center border-b border-[#3B2D59] pb-1 ${
+            canResend ? authClassNames.state.active : authClassNames.state.muted
+          }`}
+          onPress={handleResend}
+          disabled={!canResend}>
+          {isResending ? (
+            <ActivityIndicator color="#BFA8F6" size="small" />
+          ) : (
+            <Text className="font-cairo-bold text-[16px] text-[#BFA8F6]">
+              {canResend ? 'إعادة إرسال الرمز' : 'يمكن الإرسال بعد انتهاء الوقت'}
+            </Text>
+          )}
         </TouchableOpacity>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text className={authClassNames.text.error}>{error}</Text> : null}
 
         <TouchableOpacity
           activeOpacity={0.92}
-          style={[styles.confirmButton, !canConfirm && styles.confirmButtonDisabled]}
-          disabled={!canConfirm}
-          onPress={handleConfirm}>
-          {isConfirming ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>{canConfirm ? 'متابعة' : 'أدخل الرمز كاملًا'}</Text>}
+          className={`${authClassNames.button.primary} ${
+            isConfirmButtonActive
+              ? authClassNames.button.primaryActive
+              : authClassNames.button.primaryInactive
+          } mb-1 mt-[18px] min-h-[44px] w-[88%] px-[18px] py-[6px] ${
+            isConfirmButtonActive ? authClassNames.state.active : authClassNames.state.muted
+          }`}
+          style={[
+            isConfirmButtonActive
+              ? authStyles.confirmButtonShadow
+              : authStyles.primaryButtonMutedShadow,
+          ]}
+          disabled={!isConfirmButtonActive}
+          onPress={onConfirm}>
+          {isConfirming ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text
+              className={`${authClassNames.button.primaryText} ${
+                isConfirmButtonActive
+                  ? authClassNames.button.primaryTextActive
+                  : authClassNames.button.primaryTextInactive
+              } text-center text-[16px]`}>
+              {isConfirmButtonActive ? 'متابعة' : 'أدخل الرمز كاملًا'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </AuthScreenShell>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    ...authShared.content,
-  },
-  panel: {
-    ...authShared.panel,
-  },
-  topRow: {
-    ...authShared.topRow,
-  },
-  backButton: {
-    ...authShared.backButton,
-  },
-  lockCard: {
-    ...authShared.iconCard,
-  },
-  header: {
-    ...authShared.header,
-  },
-  title: {
-    ...authShared.title,
-    lineHeight: 48,
-    paddingTop: 10,
-    fontFamily: typography.fontFamily.bold,
-  },
-  subtitle: {
-    ...authShared.subtitle,
-    fontFamily: typography.fontFamily.bold,
-  },
-  otpRow: {
-    marginTop: 24,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  otpInput: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    color: '#F3EAFF',
-    fontSize: 20,
-    fontFamily: typography.fontFamily.bold,
-    fontWeight: '700',
-  },
-  otpFilled: {
-    borderColor: colors.primaryLight,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  timerWrap: {
-    marginTop: 16,
-    alignSelf: 'center',
-    minWidth: 96,
-    height: 38,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timerText: {
-    color: '#C9B3FF',
-    fontSize: 16,
-    fontFamily: typography.fontFamily.bold,
-  },
-  resendWrap: {
-    marginTop: 20,
-    alignSelf: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#3B2D59',
-    paddingBottom: 4,
-  },
-  resendWrapDisabled: {
-    opacity: 0.5,
-  },
-  resendText: {
-    color: '#BFA8F6',
-    fontSize: 16,
-    fontFamily: typography.fontFamily.bold,
-  },
-  errorText: {
-    ...authShared.errorText,
-  },
-  confirmButton: {
-    marginTop: 18,
-    marginBottom: 4,
-    width: '88%',
-    alignSelf: 'center',
-    minHeight: 44,
-    paddingVertical: 6,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: '#CBB1FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
-  },
-  confirmButtonDisabled: {
-    opacity: 0.5,
-  },
-  confirmText: {
-    color: colors.text,
-    fontSize: 16,
-    fontFamily: typography.fontFamily.bold,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-});

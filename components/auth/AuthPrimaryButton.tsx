@@ -1,7 +1,19 @@
 import React from 'react';
-import { ActivityIndicator, DimensionValue, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, DimensionValue, Text, TouchableOpacity } from 'react-native';
 
-import { colors, typography } from '@/theme';
+import { authClassNames, authStyles } from '@/components/auth/authTheme';
+
+const WIDTH_CLASS_NAMES = {
+  '88%': 'w-[88%]',
+  '90%': 'w-[90%]',
+} as const;
+
+const MARGIN_TOP_CLASS_NAMES = {
+  12: 'mt-3',
+  14: 'mt-[14px]',
+  18: 'mt-[18px]',
+  22: 'mt-[22px]',
+} as const;
 
 type Props = {
   title: string;
@@ -21,41 +33,40 @@ export default function AuthPrimaryButton({
   marginTop = 14,
 }: Props) {
   const blocked = disabled || loading;
+  const widthClassName =
+    typeof fullWidth === 'string' ? WIDTH_CLASS_NAMES[fullWidth as keyof typeof WIDTH_CLASS_NAMES] ?? '' : '';
+  const marginTopClassName =
+    MARGIN_TOP_CLASS_NAMES[marginTop as keyof typeof MARGIN_TOP_CLASS_NAMES] ?? '';
+  const buttonStateClassName = blocked
+    ? authClassNames.button.primaryInactive
+    : authClassNames.button.primaryActive;
+  const textStateClassName = blocked
+    ? authClassNames.button.primaryTextInactive
+    : authClassNames.button.primaryTextActive;
+  const fallbackStyle = {
+    ...(widthClassName ? {} : { width: fullWidth }),
+    ...(marginTopClassName ? {} : { marginTop }),
+  };
 
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      style={[styles.button, { width: fullWidth, marginTop, opacity: blocked ? 0.6 : 1 }]}
+      className={`${authClassNames.button.primary} ${buttonStateClassName} ${widthClassName} ${marginTopClassName} ${
+        blocked ? 'opacity-85' : authClassNames.state.active
+      }`}
+      style={[
+        blocked ? authStyles.primaryButtonMutedShadow : authStyles.primaryButtonShadow,
+        fallbackStyle,
+      ]}
       onPress={onPress}
       disabled={blocked}>
-      {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>{title}</Text>}
+      {loading ? (
+        <ActivityIndicator color="#FFFFFF" />
+      ) : (
+        <Text className={`${authClassNames.button.primaryText} ${textStateClassName} tracking-[0.2px]`}>
+          {title}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    alignSelf: 'center',
-    minHeight: 46,
-    paddingVertical: 8,
-    paddingHorizontal: 22,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: '#CBB1FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontFamily: typography.fontFamily.bold,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-    fontSize: 17,
-  },
-});
