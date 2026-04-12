@@ -1,23 +1,11 @@
+import type { AdminUser } from '@/services/admin-auth-api';
 import { apiRequest, type ApiRequestConfig } from '@/services/api';
 
-export type AdminUser = {
-  email: string;
-  full_name: string;
-  id: string;
-  phone: string | null;
-  role: 'admin';
-  status: 'active' | 'inactive';
-};
+export type { AdminUser } from '@/services/admin-auth-api';
 
 export type AdminAccountRecord = AdminUser & {
   created_at?: string;
   updated_at?: string;
-};
-
-export type AdminLoginResponse = {
-  message: string;
-  token: string;
-  user: AdminUser;
 };
 
 export type AdminProviderApplication = {
@@ -98,20 +86,6 @@ async function adminRequest<T>(path: string, config: ApiRequestConfig = {}) {
   return { data } as AdminApiResponse<T>;
 }
 
-export async function loginAdmin(email: string, password: string) {
-  return adminRequest<AdminLoginResponse>('/admin/auth/login', {
-    method: 'POST',
-    body: { email, password },
-  });
-}
-
-export async function fetchAdminMe() {
-  return adminRequest<AdminUser>('/admin/me', {
-    method: 'GET',
-    requiresAuth: true,
-  });
-}
-
 export async function updateAdminProfile(payload: AdminProfilePayload) {
   return adminRequest<{ message: string; user: AdminUser }>('/admin/auth/profile', {
     method: 'PUT',
@@ -138,13 +112,6 @@ export async function fetchAdminAccounts() {
 export async function deleteAdminAccount(adminId: string) {
   return adminRequest<{ message: string }>(`/admin/admins/${adminId}`, {
     method: 'DELETE',
-    requiresAuth: true,
-  });
-}
-
-export async function logoutAdmin() {
-  return adminRequest<{ message: string }>('/admin/auth/logout', {
-    method: 'POST',
     requiresAuth: true,
   });
 }
