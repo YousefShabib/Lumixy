@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
@@ -53,6 +54,8 @@ type AnimatedTapProps = {
   pressScale?: number;
 };
 
+type SearchRoute = '/search' | '/provider/tabs/search';
+
 const defaultRotatingMessages = [
   'ابحث عن مزودي الخدمات المعتمدين',
   'تابع التصنيفات المتاحة لحظيًا',
@@ -96,13 +99,11 @@ function HeroCard({ rotatingMessage, onStartPress }: HeroCardProps) {
       end={{ x: 1, y: 1 }}
       style={styles.heroCard}>
       <View style={styles.heroIconBox}>
-        <Ionicons name="storefront-outline" size={20} color={colors.text} />
+        <Ionicons name="storefront-outline" size={18} color={colors.text} />
       </View>
 
       <View style={styles.heroContent}>
-        <Text style={styles.heroTitle}>
-          أهلًا بك في{'\n'}لوميكسي
-        </Text>
+        <Text style={styles.heroTitle}>أهلًا بك في لوميكسي</Text>
         <Text style={styles.heroSubtitle}>
           تصفح الدليل العام للمزودين{'\n'}
           {rotatingMessage}
@@ -116,6 +117,33 @@ function HeroCard({ rotatingMessage, onStartPress }: HeroCardProps) {
         </AnimatedTap>
       </View>
     </LinearGradient>
+  );
+}
+
+function AdvertisementCard() {
+  return (
+    <View style={styles.adCard}>
+      <Image
+        source={require('../../assets/images/icon.png')}
+        contentFit="cover"
+        style={styles.adBackgroundImage}
+      />
+
+      <LinearGradient
+        colors={['rgba(17, 10, 27, 0.30)', 'rgba(17, 10, 27, 0.92)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.adOverlay}
+      />
+
+      <View style={styles.adContent}>
+        <View style={styles.adBadge}>
+          <Text style={styles.adBadgeText}>AD</Text>
+        </View>
+        <Text style={styles.adTitle}>مساحة إعلانية</Text>
+        <Text style={styles.adSubtitle}>يمكن وضع صورة إعلان هنا لاحقًا</Text>
+      </View>
+    </View>
   );
 }
 
@@ -223,7 +251,7 @@ function HorizontalSeparator() {
   return <View style={styles.itemSeparator} />;
 }
 
-export default function HomeScreen() {
+export function HomeScreen({ searchRoute = '/search' }: { searchRoute?: SearchRoute }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [activeMessageIndex, setActiveMessageIndex] = useState(0);
@@ -232,8 +260,8 @@ export default function HomeScreen() {
     queryFn: ({ signal }) => fetchHomeData(signal),
   });
   const errorMessage = error instanceof Error ? error.message : null;
-  const serviceCardWidth = Math.min(Math.max(width * 0.39, 102), 122);
-  const providerCardWidth = Math.min(Math.max(width * 0.76, 214), 252);
+  const serviceCardWidth = Math.min(Math.max(width * 0.39, 108), 128);
+  const providerCardWidth = Math.min(Math.max(width * 0.72, 206), 238);
 
   const rotatingMessages = homeData?.rotatingMessages?.length
     ? homeData.rotatingMessages
@@ -258,6 +286,18 @@ export default function HomeScreen() {
   const activeMessage = rotatingMessages[activeMessageIndex] ?? defaultRotatingMessages[0];
   const services = homeData?.services ?? [];
   const providers = homeData?.providers ?? [];
+  const isFallbackData = homeData?.dataSource === 'fallback';
+  function openSearch(categoryId?: string) {
+    if (categoryId) {
+      router.push({
+        pathname: searchRoute,
+        params: { categoryId },
+      } as Href);
+      return;
+    }
+
+    router.push(searchRoute);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -275,7 +315,7 @@ export default function HomeScreen() {
         <View style={styles.heroOrb} />
 
         <View style={styles.header}>
-          <Text style={styles.logo}>لوميكسي</Text>
+          <Text style={styles.logo}>LUMIXY</Text>
         </View>
 
         <ScrollView
@@ -283,115 +323,134 @@ export default function HomeScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           bounces={false}>
-          <HeroCard
-            rotatingMessage={activeMessage}
-            onStartPress={() => {
-              router.push('/search');
-            }}
-          />
-
-          {isLoading && !homeData ? (
-            <StatusMessage
-              style={styles.statusBlock}
-              title="جاري تحميل الصفحة"
-              message="نحصل الآن على التصنيفات والمزودين المعتمدين من Laravel."
-              variant="info"
-            />
-          ) : null}
-
-          {errorMessage ? (
-            <StatusMessage
-              style={styles.statusBlock}
-              title="تعذر تحميل البيانات"
-              message={errorMessage}
-              variant="error"
-              actionLabel="إعادة المحاولة"
-              onActionPress={() => {
-                void refetch();
+          <View style={styles.topContent}>
+            <HeroCard
+              rotatingMessage={activeMessage}
+              onStartPress={() => {
+                openSearch();
               }}
             />
-          ) : null}
 
-          {!isLoading && !errorMessage && homeData && homeData.stats.approvedProviders === 0 ? (
-            <StatusMessage
-              style={styles.statusBlock}
-              title="لا يوجد مزودون معتمدون حتى الآن"
-              message="عند اعتماد أول مزود خدمة سيظهر هنا مباشرة في الصفحة الرئيسية والبحث."
-              variant="warning"
-            />
-          ) : null}
+            {isLoading && !homeData ? (
+              <StatusMessage
+                style={styles.statusBlock}
+                title="جاري تحميل الصفحة"
+                message="نحصل الآن على التصنيفات والمزودين المعتمدين من Laravel."
+                variant="info"
+              />
+            ) : null}
 
-          <SectionHeader title="التصنيفات المتاحة" />
-          {services.length > 0 ? (
-            <FlatList
-              horizontal
-              inverted
-              data={services}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ServiceCard
-                  service={item}
-                  width={serviceCardWidth}
-                  onPress={() => {
-                    router.push({
-                      pathname: '/search',
-                      params: { categoryId: item.id },
-                    });
-                  }}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.servicesTrack}
-              style={styles.horizontalCarousel}
-              ItemSeparatorComponent={HorizontalSeparator}
-              nestedScrollEnabled
-            />
-          ) : (
-            <StatusMessage
-              style={styles.emptySectionCard}
-              title="لا توجد تصنيفات نشطة"
-              message="فعّل تصنيفات الخدمة في لوحة الإدارة لتظهر هنا."
-              variant="warning"
-            />
-          )}
+            {errorMessage ? (
+              <StatusMessage
+                style={styles.statusBlock}
+                title="تعذر تحميل البيانات"
+                message={errorMessage}
+                variant="error"
+                actionLabel="إعادة المحاولة"
+                onActionPress={() => {
+                  void refetch();
+                }}
+              />
+            ) : null}
 
-          <SectionHeader
-            title="المزودون الظاهرون الآن"
-            actionLabel={providers.length > 0 ? 'عرض الكل' : undefined}
-            onActionPress={() => {
-              router.push('/search');
-            }}
-          />
+            {isFallbackData ? (
+              <StatusMessage
+                style={styles.statusBlock}
+                title="يتم عرض بيانات تجريبية"
+                message={
+                  homeData?.warningMessage ??
+                  'تعذر الوصول إلى الباك الحالي، لذلك يتم عرض بيانات محلية مؤقتة.'
+                }
+                variant="warning"
+              />
+            ) : null}
 
-          {providers.length > 0 ? (
-            <FlatList
-              horizontal
-              inverted
-              data={providers}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <ProviderCard provider={item} width={providerCardWidth} />}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.providersTrack}
-              style={styles.horizontalCarousel}
-              ItemSeparatorComponent={HorizontalSeparator}
-              nestedScrollEnabled
+            {!isLoading && !errorMessage && homeData && homeData.stats.approvedProviders === 0 ? (
+              <StatusMessage
+                style={styles.statusBlock}
+                title="لا يوجد مزودون معتمدون حتى الآن"
+                message="عند اعتماد أول مزود خدمة سيظهر هنا مباشرة في الصفحة الرئيسية والبحث."
+                variant="warning"
+              />
+            ) : null}
+
+            <SectionHeader title="التصنيفات المتاحة" />
+            {services.length > 0 ? (
+              <FlatList
+                horizontal
+                inverted
+                data={services}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <ServiceCard
+                    service={item}
+                    width={serviceCardWidth}
+                    onPress={() => {
+                      openSearch(item.id);
+                    }}
+                  />
+                )}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.servicesTrack}
+                style={styles.horizontalCarousel}
+                ItemSeparatorComponent={HorizontalSeparator}
+                nestedScrollEnabled
+              />
+            ) : (
+              <StatusMessage
+                style={styles.emptySectionCard}
+                title="لا توجد تصنيفات نشطة"
+                message="فعّل تصنيفات الخدمة في لوحة الإدارة لتظهر هنا."
+                variant="warning"
+              />
+            )}
+
+            <SectionHeader
+              title="المزودون الظاهرون الآن"
+              actionLabel={providers.length > 0 ? 'عرض الكل' : undefined}
+              onActionPress={() => {
+                openSearch();
+              }}
             />
-          ) : !isLoading ? (
-            <StatusMessage
-              style={styles.emptySectionCard}
-              title="قائمة المزودين فارغة"
-              message="بعد اعتماد مزود واحد على الأقل ستظهر بطاقاته هنا."
-              variant="info"
-            />
-          ) : (
-            <View style={styles.loaderRow}>
-              <ActivityIndicator color="#B04BFF" />
-            </View>
-          )}
+
+            {providers.length > 0 ? (
+              <FlatList
+                horizontal
+                inverted
+                data={providers}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => <ProviderCard provider={item} width={providerCardWidth} />}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.providersTrack}
+                style={styles.horizontalCarousel}
+                ItemSeparatorComponent={HorizontalSeparator}
+                nestedScrollEnabled
+              />
+            ) : !isLoading ? (
+              <StatusMessage
+                style={styles.emptySectionCard}
+                title="قائمة المزودين فارغة"
+                message="بعد اعتماد مزود واحد على الأقل ستظهر بطاقاته هنا."
+                variant="info"
+              />
+            ) : (
+              <View style={styles.loaderRow}>
+                <ActivityIndicator color="#B04BFF" />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.adSlot}>
+            <AdvertisementCard />
+          </View>
         </ScrollView>
       </View>
     </SafeAreaView>
   );
+}
+
+export default function GuestHomeScreen() {
+  return <HomeScreen />;
 }
 
 const styles = StyleSheet.create({
@@ -429,9 +488,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(104, 26, 182, 0.10)',
   },
   header: {
-    height: 50,
+    height: 42,
     paddingHorizontal: 14,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.12)',
     backgroundColor: 'rgba(18, 8, 23, 0.72)',
@@ -439,23 +499,28 @@ const styles = StyleSheet.create({
   logo: {
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
-    fontSize: 28,
-    textAlign: 'left',
+    fontSize: 18,
+    letterSpacing: 2.6,
+    textAlign: 'center',
   },
   scroll: {
     flex: 1,
   },
   content: {
+    flexGrow: 1,
     paddingTop: 16,
-    paddingBottom: 124,
+    paddingBottom: 10,
+  },
+  topContent: {
+    flexShrink: 0,
   },
   heroCard: {
     marginHorizontal: 16,
-    minHeight: 182,
-    borderRadius: 28,
-    paddingTop: 14,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    minHeight: 146,
+    borderRadius: 24,
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 12,
     shadowColor: '#000',
     shadowOpacity: 0.34,
     shadowRadius: 18,
@@ -463,30 +528,30 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   heroIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.17)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   heroContent: {
-    marginTop: 26,
+    marginTop: 14,
     alignItems: 'flex-end',
   },
   heroTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
-    fontSize: 24,
-    lineHeight: 29,
+    fontSize: 20,
+    lineHeight: 24,
     textAlign: 'right',
   },
   heroSubtitle: {
-    marginTop: 8,
+    marginTop: 5,
     color: 'rgba(255,255,255,0.84)',
     fontFamily: typography.fontFamily.regular,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 12,
+    lineHeight: 18,
     textAlign: 'right',
   },
   heroButtonRow: {
@@ -495,12 +560,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   heroButton: {
-    marginTop: 14,
-    minWidth: 136,
-    height: 42,
-    borderRadius: 21,
+    marginTop: 10,
+    minWidth: 122,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 18,
+    paddingHorizontal: 14,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'flex-start',
@@ -515,18 +580,18 @@ const styles = StyleSheet.create({
   heroButtonText: {
     color: '#9D4DFF',
     fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'right',
     writingDirection: 'rtl',
-    marginLeft: 7,
+    marginLeft: 5,
   },
   statusBlock: {
-    marginTop: 20,
+    marginTop: 14,
     marginHorizontal: 16,
   },
   sectionHeader: {
-    marginTop: 24,
-    marginBottom: 14,
+    marginTop: 16,
+    marginBottom: 10,
     paddingHorizontal: 16,
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -535,7 +600,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'right',
     flex: 1,
     writingDirection: 'rtl',
@@ -564,7 +629,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   serviceCard: {
-    minHeight: 114,
+    minHeight: 112,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingTop: 12,
@@ -588,7 +653,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginBottom: 13,
+    marginBottom: 12,
   },
   serviceTitle: {
     fontFamily: typography.fontFamily.bold,
@@ -598,7 +663,7 @@ const styles = StyleSheet.create({
   },
   countPill: {
     alignSelf: 'center',
-    marginTop: 9,
+    marginTop: 8,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 2,
@@ -609,11 +674,11 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   providerCard: {
-    borderRadius: 20,
+    borderRadius: 18,
     backgroundColor: 'rgba(24, 11, 31, 0.96)',
     borderWidth: 1,
     borderColor: 'rgba(155, 99, 208, 0.18)',
-    padding: 14,
+    padding: 12,
     shadowColor: '#000',
     shadowOpacity: 0.22,
     shadowRadius: 16,
@@ -630,9 +695,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   providerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -644,8 +709,8 @@ const styles = StyleSheet.create({
   providerName: {
     color: colors.text,
     fontFamily: typography.fontFamily.bold,
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 16,
+    lineHeight: 20,
     textAlign: 'right',
   },
   providerCategoryRow: {
@@ -656,15 +721,15 @@ const styles = StyleSheet.create({
   },
   providerCategory: {
     fontFamily: typography.fontFamily.bold,
-    fontSize: 13,
+    fontSize: 12,
   },
   providerMetaPill: {
-    marginTop: 16,
-    minHeight: 40,
-    borderRadius: 14,
+    marginTop: 12,
+    minHeight: 34,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 13,
+    paddingHorizontal: 10,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -684,20 +749,74 @@ const styles = StyleSheet.create({
   providerMetaText: {
     color: '#DDF9F1',
     fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
+    fontSize: 11,
   },
   providerLocationText: {
     color: '#B8B4C2',
     fontFamily: typography.fontFamily.regular,
-    fontSize: 12,
+    fontSize: 11,
   },
   emptySectionCard: {
     marginHorizontal: 16,
   },
   loaderRow: {
-    minHeight: 88,
+    minHeight: 74,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  adSlot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 8,
+    paddingTop: 2,
+  },
+  adCard: {
+    height: 188,
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#17131B',
+  },
+  adBackgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.18,
+  },
+  adOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  adContent: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  adBadge: {
+    minWidth: 38,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  adBadgeText: {
+    color: '#FFFFFF',
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 10,
+    letterSpacing: 1.1,
+  },
+  adTitle: {
+    color: '#FFFFFF',
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 18,
+    textAlign: 'right',
+  },
+  adSubtitle: {
+    color: 'rgba(255,255,255,0.74)',
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 11,
+    textAlign: 'right',
   },
   cardPressed: {
     opacity: 0.92,

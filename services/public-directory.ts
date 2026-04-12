@@ -1,4 +1,4 @@
-import { apiClient, buildPublicAssetUrl } from '@/services/api/client';
+import { apiRequest, resolveApiAssetUrl } from '@/services/api';
 
 type ApiCategory = {
   id: string;
@@ -99,6 +99,8 @@ export type PublicDirectoryData = {
   providers: PublicProvider[];
   featuredProviders: PublicProvider[];
   stats: PublicDirectoryStats;
+  dataSource: 'api' | 'fallback';
+  warningMessage: string | null;
 };
 
 const categoryIconFallbacks = [
@@ -347,7 +349,7 @@ function normalizeCategory(category: ApiCategory, providersCount = 0, index = 0)
 
 function normalizeProvider(provider: ApiProvider, index = 0): PublicProvider {
   const galleryImages = (provider.gallery ?? [])
-    .map((item) => buildPublicAssetUrl(item.image_url))
+    .map((item) => resolveApiAssetUrl(item.image_url))
     .filter((item): item is string => Boolean(item));
   const customServices = toStringArray(provider.custom_services);
   const categoryName = provider.category?.name?.trim() || 'غير مصنف';
@@ -362,7 +364,7 @@ function normalizeProvider(provider: ApiProvider, index = 0): PublicProvider {
     categoryId: provider.category_id ?? provider.category?.id ?? null,
     categoryName,
     categoryIcon,
-    imageUrl: buildPublicAssetUrl(provider.profile_image),
+    imageUrl: resolveApiAssetUrl(provider.profile_image),
     galleryImages,
     customServices,
     whatsappNumber: provider.whatsapp_number?.trim() || null,
@@ -468,7 +470,7 @@ function toDirectoryProvider(provider: PublicProviderDetails): PublicProvider {
   });
 }
 
-export function getFallbackPublicDirectory(): PublicDirectoryData {
+export function getFallbackPublicDirectory(warningMessage: string | null = null): PublicDirectoryData {
   const providers = fallbackProviderDetails.map(toDirectoryProvider);
   const featuredProviders = providers.filter((provider) => provider.isFeatured).map(cloneProvider);
 
@@ -477,6 +479,8 @@ export function getFallbackPublicDirectory(): PublicDirectoryData {
     providers,
     featuredProviders,
     stats: { ...fallbackDirectoryStats },
+    dataSource: 'fallback',
+    warningMessage,
   };
 }
 
@@ -486,18 +490,19 @@ function getFallbackPublicProviderDetails(id: string) {
 }
 
 async function fetchProvidersPage(page: number, signal?: AbortSignal) {
-  const response = await apiClient.get<ApiPaginatedResponse<ApiProvider>>('/providers', {
-    params: { page },
+  return apiRequest<ApiPaginatedResponse<ApiProvider>>(`providers?page=${page}`, {
+    method: 'GET',
     signal,
   });
-
-  return response.data;
 }
 
 export async function fetchPublicCategories(signal?: AbortSignal) {
-  const response = await apiClient.get<ApiCategory[]>('/service-categories', { signal });
+  const categories = await apiRequest<ApiCategory[]>('service-categories', {
+    method: 'GET',
+    signal,
+  });
 
-  return (response.data ?? []).map((category, index) => normalizeCategory(category, 0, index));
+  return (categories ?? []).map((category, index) => normalizeCategory(category, 0, index));
 }
 
 export async function fetchAllPublicProviders(signal?: AbortSignal) {
@@ -535,6 +540,8 @@ export async function fetchPublicDirectory(signal?: AbortSignal): Promise<Public
       activeCategories: mergedCategories.length,
       citiesCount: countCities(providers),
     },
+    dataSource: 'api',
+    warningMessage: null,
   };
 }
 
@@ -543,15 +550,19 @@ export async function fetchPublicDirectoryWithFallback(
 ): Promise<PublicDirectoryData> {
   try {
     return await fetchPublicDirectory(signal);
-  } catch {
-    return getFallbackPublicDirectory();
+  } catch (error) {
+    const warningMessage =
+      error instanceof Error ? error.message : 'تعذر الوصول إلى بيانات الباك الحالية.';
+    return getFallbackPublicDirectory(warningMessage);
   }
 }
 
 export async function fetchPublicProviderDetails(id: string, signal?: AbortSignal) {
   try {
-    const response = await apiClient.get<ApiProvider>(`/providers/${id}`, { signal });
-    const provider = response.data;
+    const provider = await apiRequest<ApiProvider>(`providers/${id}`, {
+      method: 'GET',
+      signal,
+    });
     const normalizedProvider = normalizeProvider(provider);
 
     return {

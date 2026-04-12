@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useDeferredValue, useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import {
@@ -84,6 +84,7 @@ function buildCityFilterChips(results: SearchResultItem[]): CityFilterChip[] {
 }
 
 export default function SearchScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ categoryId?: string | string[] }>();
   const routeCategoryId = normalizeCategoryParam(params.categoryId);
   const [activeFilterId, setActiveFilterId] = useState(routeCategoryId);
@@ -133,6 +134,7 @@ export default function SearchScreen() {
 
   const filters = searchData?.filters ?? [{ id: 'all', label: 'الكل' } satisfies SearchFilter];
   const results = searchData?.results ?? [];
+  const isFallbackData = searchData?.dataSource === 'fallback';
   const cityFilterChips = buildCityFilterChips(results);
   const normalizedSearch = deferredSearch.trim().toLowerCase();
   const hasProviders = results.length > 0;
@@ -153,7 +155,12 @@ export default function SearchScreen() {
   });
 
   const resultsCountLabel = `${filteredResults.length.toLocaleString('ar-EG')} نتيجة`;
-  function handleProfilePress() {}
+  function handleProfilePress(providerId: string) {
+    router.push({
+      pathname: '/providers/[id]',
+      params: { id: providerId },
+    });
+  }
 
   function handleOpenCitySheet() {
     setIsCitySheetOpen(true);
@@ -249,6 +256,18 @@ export default function SearchScreen() {
         />
       ) : null}
 
+      {isFallbackData ? (
+        <StatusMessage
+          style={styles.topStatus}
+          title="يتم عرض بيانات تجريبية"
+          message={
+            searchData?.warningMessage ??
+            'تعذر الوصول إلى الباك الحالي، لذلك يتم عرض نتائج محلية مؤقتة.'
+          }
+          variant="warning"
+        />
+      ) : null}
+
       {!isLoading && !errorMessage && !hasProviders ? (
         <StatusMessage
           style={styles.topStatus}
@@ -286,7 +305,7 @@ export default function SearchScreen() {
                 <Ionicons name="location-outline" size={13} color="#B9A6D6" />
                 <Text style={styles.resultLocation}>{item.location}</Text>
 
-                <Pressable onPress={handleProfilePress}>
+                <Pressable onPress={() => handleProfilePress(item.id)}>
                   <Text style={styles.profileLink}>عرض الملف الشخصي</Text>
                 </Pressable>
               </View>

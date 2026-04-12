@@ -25,6 +25,8 @@ export type SearchResultItem = {
 export type SearchScreenData = {
   filters: SearchFilter[];
   results: SearchResultItem[];
+  dataSource: PublicDirectoryData['dataSource'];
+  warningMessage: string | null;
 };
 
 function buildSearchFilter(category: PublicCategory): SearchFilter {
@@ -57,6 +59,8 @@ function buildSearchData(directory: PublicDirectoryData): SearchScreenData {
   return {
     filters: [{ id: 'all', label: 'الكل' }, ...directory.categories.map(buildSearchFilter)],
     results: directory.providers.map(buildSearchResult),
+    dataSource: directory.dataSource,
+    warningMessage: directory.warningMessage,
   };
 }
 

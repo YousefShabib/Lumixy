@@ -47,6 +47,7 @@ export type ApiRequestConfig = {
   body?: BodyInit | FormData | Record<string, unknown> | null;
   headers?: Record<string, string>;
   requiresAuth?: boolean;
+  signal?: AbortSignal;
   timeoutMs?: number;
 };
 
@@ -324,6 +325,7 @@ export async function apiRequest<T = unknown>(
         data: requestBody,
         headers: requestHeaders,
         method,
+        signal: config.signal,
         timeout: timeoutMs,
         url,
         validateStatus: () => true,
@@ -382,7 +384,7 @@ export async function apiRequest<T = unknown>(
   const networkMessage =
     isAxiosError(lastError) && lastError.code === 'ECONNABORTED'
       ? 'انتهت مهلة الاتصال بالخادم. تأكد من تشغيله ثم حاول مرة أخرى.'
-      : 'تعذر الوصول إلى الخادم. شغّل الـ backend أو اضبط EXPO_PUBLIC_API_BASE_URL على العنوان الصحيح.';
+      : 'تعذر الوصول إلى الخادم. شغّل الـ backend أو اضبط عنوان الـ API الصحيح في متغيرات البيئة.';
 
   throw new ApiError({
     baseUrl: preferredApiBaseUrl,

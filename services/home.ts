@@ -33,6 +33,8 @@ export type HomeData = {
   services: ServiceItem[];
   providers: ProviderItem[];
   stats: PublicDirectoryStats;
+  dataSource: PublicDirectoryData['dataSource'];
+  warningMessage: string | null;
 };
 
 const servicePalettes = [
@@ -141,6 +143,8 @@ function buildHomeData(directory: PublicDirectoryData): HomeData {
       accent: providerAccents[index % providerAccents.length] ?? providerAccents[0],
     })),
     stats: directory.stats,
+    dataSource: directory.dataSource,
+    warningMessage: directory.warningMessage,
   };
 }
 
