@@ -15,7 +15,9 @@ export default function EntryScreen() {
 
 
       <View style={styles.cards}>
-        <Pressable style={[styles.card, styles.cardDark]} onPress={() => router.replace('/(tabs)')}>
+        <Pressable
+          style={[styles.card, styles.cardDark]}
+          onPress={() => router.replace('/(tabs)')}>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>⌕</Text>
           </View>
