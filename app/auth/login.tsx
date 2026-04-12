@@ -10,10 +10,6 @@ import AuthScreenShell from '@/components/auth/AuthScreenShell';
 import { authClassNames } from '@/components/auth/authTheme';
 import { EMAIL_REGEX, authValidationMessages } from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
-<<<<<<< HEAD
-import { getRouteForUser } from '@/services/authRoutes';
-import { colors, typography } from '@/theme';
-=======
 import { getRouteForRole } from '@/services/authRoutes';
 import { colors } from '@/theme';
 
@@ -21,7 +17,6 @@ type LoginFormValues = {
   email: string;
   password: string;
 };
->>>>>>> origin/feature/waleedarman-auth
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -58,16 +53,11 @@ export default function LoginScreen() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-<<<<<<< HEAD
-      const response = await login({ email: email.trim(), password });
-      router.replace(getRouteForUser(response.user));
-=======
       const response = await login({
         email: values.email.trim(),
         password: values.password,
       });
       router.replace(getRouteForRole(response.user.role));
->>>>>>> origin/feature/waleedarman-auth
     } catch {}
   });
 

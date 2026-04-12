@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
 const STORAGE_KEYS = {
@@ -63,19 +62,8 @@ async function hydrateUserCache() {
   }
 
   try {
-    const data = await AsyncStorage.getItem(STORAGE_KEYS.user);
-    const parsedUser = parseStoredUser(data);
-    if (parsedUser) {
-      setUserCache(parsedUser);
-      return;
-    }
-  } catch {
-    // Fall through to SecureStore fallback.
-  }
-
-  try {
-    const secureData = await SecureStore.getItemAsync(STORAGE_KEYS.user);
-    setUserCache(parseStoredUser(secureData));
+    const data = await SecureStore.getItemAsync(STORAGE_KEYS.user);
+    setUserCache(parseStoredUser(data));
   } catch {
     setUserCache(null);
   }
@@ -140,13 +128,6 @@ const StorageService = {
     const serializedUser = JSON.stringify(user);
 
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.user, serializedUser);
-      return;
-    } catch {
-      // Fall back to SecureStore when AsyncStorage isn't available.
-    }
-
-    try {
       await SecureStore.setItemAsync(STORAGE_KEYS.user, serializedUser);
     } catch {
       // Keep the in-memory user so auth can continue in this session.
@@ -162,12 +143,6 @@ const StorageService = {
     setUserCache(null);
 
     try {
-      await AsyncStorage.removeItem(STORAGE_KEYS.user);
-    } catch {
-      // Ignore storage cleanup errors.
-    }
-
-    try {
       await SecureStore.deleteItemAsync(STORAGE_KEYS.user);
     } catch {
       // Ignore storage cleanup errors.
@@ -178,12 +153,7 @@ const StorageService = {
     setUserCache(null);
 
     try {
-      await AsyncStorage.clear();
-    } catch {
-      // Ignore storage cleanup errors.
-    }
-
-    try {
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.token);
       await SecureStore.deleteItemAsync(STORAGE_KEYS.user);
     } catch {
       // Ignore storage cleanup errors.
@@ -194,5 +164,13 @@ const StorageService = {
   saveSession,
   removeSession,
 };
+
+export async function getStoredToken() {
+  return StorageService.getToken();
+}
+
+export async function clearToken() {
+  await StorageService.removeToken();
+}
 
 export default StorageService;

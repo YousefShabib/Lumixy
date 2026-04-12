@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 
 export function usePersistedState<T>(storageKey: string, initialValue: T) {
@@ -10,7 +10,7 @@ export function usePersistedState<T>(storageKey: string, initialValue: T) {
 
     const hydrate = async () => {
       try {
-        const storedValue = await AsyncStorage.getItem(storageKey);
+        const storedValue = await SecureStore.getItemAsync(storageKey);
 
         if (storedValue == null || !isMounted) {
           return;
@@ -38,7 +38,15 @@ export function usePersistedState<T>(storageKey: string, initialValue: T) {
       return;
     }
 
-    void AsyncStorage.setItem(storageKey, JSON.stringify(value));
+    const persist = async () => {
+      try {
+        await SecureStore.setItemAsync(storageKey, JSON.stringify(value));
+      } catch {
+        // Ignore persistence errors for non-critical UI state.
+      }
+    };
+
+    void persist();
   }, [isHydrated, storageKey, value]);
 
   return [value, setValue, isHydrated] as const;
