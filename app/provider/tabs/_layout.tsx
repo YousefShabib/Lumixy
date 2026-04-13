@@ -12,6 +12,8 @@ export default function ProviderTabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
+          direction: "rtl",
+          flexDirection: "row-reverse",
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 1,
@@ -25,6 +27,8 @@ export default function ProviderTabsLayout() {
           fontSize: 12,
           marginBottom: 6,
           fontFamily: typography.fontFamily.regular,
+          writingDirection: "rtl",
+          textAlign: "center",
         },
       }}
     >
