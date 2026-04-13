@@ -1,56 +1,323 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 
-import useAuth from '@/hooks/useAuth';
+import {
+  extractErrorMessage,
+  fetchProviderProfile,
+  fetchProviderStatus,
+  providerProfileQueryKey,
+  providerStatusQueryKey,
+} from '@/services/provider-api';
+import {
+  getProviderSession,
+  loadProviderSession,
+  providerSessionQueryKey,
+} from '@/services/provider-session';
+import { colors } from '@/theme';
 
 export default function ProviderProfileScreen() {
-  const { isLoading, logout } = useAuth();
-  const isLoggingOut = isLoading('logout');
+  const sessionQuery = useQuery({
+    queryKey: providerSessionQueryKey,
+    queryFn: loadProviderSession,
+    initialData: getProviderSession() ?? undefined,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const session = sessionQuery.data ?? null;
 
-  const handleLogout = async () => {
+  const profileQuery = useQuery({
+    queryKey: providerProfileQueryKey,
+    queryFn: fetchProviderProfile,
+    enabled: Boolean(session?.token),
+  });
+
+  const statusQuery = useQuery({
+    queryKey: providerStatusQueryKey,
+    queryFn: fetchProviderStatus,
+    enabled: Boolean(session?.token),
+  });
+
+  useEffect(() => {
+    if (!sessionQuery.isLoading && !session) {
+      router.replace('/auth/login');
+    }
+  }, [session, sessionQuery.isLoading]);
+
+  useEffect(() => {
+    if (statusQuery.data?.applicationStatus === 'pending') {
+      router.replace('/provider/waiting-approval');
+    }
+  }, [statusQuery.data?.applicationStatus]);
+
+  const providerProfile = profileQuery.data;
+  const displayedWorks = providerProfile?.works ?? [];
+
+  const openExternalLink = async (url: string) => {
     try {
-      await logout();
-    } finally {
-      router.replace('/');
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+        return;
+      }
+
+      Alert.alert('تعذر فتح الرابط', 'هذا الرابط غير مدعوم على جهازك.');
+    } catch (error) {
+      Alert.alert('تعذر فتح الرابط', extractErrorMessage(error));
     }
   };
 
-  return (
-    <SafeAreaView className="flex-1 bg-admin-background" edges={['top']}>
-      <StatusBar style="light" />
+  const handleCall = () => {
+    if (!providerProfile?.phone) {
+      Alert.alert('تنبيه', 'لا يوجد رقم هاتف محفوظ في الحساب.');
+      return;
+    }
 
-      <View className="flex-1 justify-end px-5 pb-7">
-        <Pressable
-          className="min-h-[84px] flex-row-reverse items-center rounded-[26px] border border-admin-danger/15 bg-[#1A1217] px-4"
-          disabled={isLoggingOut}
+    void openExternalLink(`tel:${providerProfile.phone}`);
+  };
+
+  const handleWhatsApp = () => {
+    if (!providerProfile?.whatsapp) {
+      Alert.alert('تنبيه', 'لا يوجد رقم واتساب محفوظ في الملف.');
+      return;
+    }
+
+    const cleanNumber = providerProfile.whatsapp.replace(/\D/g, '');
+    void openExternalLink(`https://wa.me/${cleanNumber}`);
+  };
+
+  const handleInstagram = () => {
+    if (!providerProfile?.instagram) {
+      Alert.alert('تنبيه', 'لا يوجد حساب إنستغرام محفوظ.');
+      return;
+    }
+
+    const username = providerProfile.instagram.replace(/^@/, '');
+    void openExternalLink(`https://instagram.com/${username}`);
+  };
+
+  const handleFacebook = () => {
+    if (!providerProfile?.facebook) {
+      Alert.alert('تنبيه', 'لا يوجد رابط فيسبوك محفوظ.');
+      return;
+    }
+
+    void openExternalLink(providerProfile.facebook);
+  };
+
+  if (sessionQuery.isLoading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator color={colors.primaryLight} />
+        <Text className="mt-4 font-cairo text-[14px] text-text-secondary">جارٍ التحقق من الجلسة...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
+
+  if (profileQuery.isLoading || statusQuery.isLoading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator color={colors.primaryLight} />
+        <Text className="mt-4 font-cairo text-[14px] text-text-secondary">جارٍ تحميل الملف...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!providerProfile || profileQuery.isError) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-background px-6">
+        <Text className="mb-3 text-center font-cairo-bold text-[18px] text-text">
+          تعذر تحميل الملف
+        </Text>
+        <Text className="mb-5 text-center font-cairo text-[14px] leading-6 text-text-secondary">
+          {extractErrorMessage(profileQuery.error)}
+        </Text>
+        <TouchableOpacity
+          className="rounded-[14px] bg-primary px-5 py-3"
           onPress={() => {
-            void handleLogout();
-          }}>
-          <View className="h-[42px] w-[42px] items-center justify-center rounded-full bg-admin-danger/10">
-            <MaterialCommunityIcons color="#EF4444" name="logout" size={20} />
+            void profileQuery.refetch();
+          }}
+          activeOpacity={0.85}>
+          <Text className="font-cairo-bold text-[14px] text-text">إعادة المحاولة</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+      <ScrollView
+        className="flex-1 bg-background"
+        contentContainerClassName="px-[14px] pt-[6px] pb-32"
+        showsVerticalScrollIndicator={false}>
+        <View className="relative mb-[22px] min-h-10 items-center justify-center">
+          <Text className="font-cairo-bold text-[15px] tracking-[0.9px] text-text">LUMIXY</Text>
+
+          <TouchableOpacity
+            className="absolute right-0 h-8 w-8 items-center justify-center rounded-full border border-border bg-[#23122E]"
+            onPress={() => router.push('/provider/tabs/edit-profile')}
+            activeOpacity={0.85}>
+            <Ionicons name="create-outline" size={18} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <View className="mb-5 items-center">
+          <TouchableOpacity
+            onPress={() => router.push('/provider/tabs/edit-profile')}
+            activeOpacity={0.9}
+            className="relative mb-[14px] h-[116px] w-[116px] items-center justify-center rounded-full">
+            <View
+              className="h-[108px] w-[108px] items-center justify-center rounded-full border-[2.5px] border-primary bg-[#120715]"
+              style={{
+                shadowColor: colors.primaryLight,
+                shadowOpacity: 0.35,
+                shadowOffset: { width: 0, height: 0 },
+                shadowRadius: 14,
+                elevation: 9,
+              }}>
+              <Image source={{ uri: providerProfile.avatar }} className="h-[92px] w-[92px] rounded-full" />
+            </View>
+            <View className="absolute bottom-4 right-[10px] h-[14px] w-[14px] rounded-full border-2 border-background bg-[#22C55E]" />
+          </TouchableOpacity>
+
+          <Text className="mb-2 text-center font-cairo-bold text-[24px] leading-[34px] text-text">
+            {providerProfile.name}
+          </Text>
+
+          <View className="mb-3 flex-row-reverse items-center gap-1">
+            <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+            <Text className="font-cairo text-[12px] text-text-secondary">
+              {providerProfile.location || 'لم يتم تحديد الموقع بعد'}
+            </Text>
           </View>
 
-          <View className="flex-1 px-3">
-            <Text className="text-right font-cairo-bold text-[17px] text-admin-danger">
-              تسجيل الخروج
-            </Text>
-            <Text className="mt-1 text-right font-cairo text-[12px] leading-5 text-admin-muted">
-              إنهاء الجلسة الحالية والعودة للشاشة الرئيسية
+          <View className="mb-3 flex-row gap-2.5">
+            <TouchableOpacity
+              className="h-8 w-8 items-center justify-center rounded-full border border-border bg-[#1A0E24]"
+              onPress={handleInstagram}
+              activeOpacity={0.85}>
+              <Ionicons name="logo-instagram" size={16} color="#E879F9" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="h-8 w-8 items-center justify-center rounded-full border border-border bg-[#1A0E24]"
+              onPress={handleFacebook}
+              activeOpacity={0.85}>
+              <Ionicons name="logo-facebook" size={16} color="#60A5FA" />
+            </TouchableOpacity>
+          </View>
+
+          <View className="flex-row-reverse items-center gap-1.5 rounded-full border border-border bg-[#1A0E24] px-3 py-2">
+            <Ionicons name="time-outline" size={14} color={colors.accent} />
+            <Text className="font-cairo text-[12px] text-text-secondary">
+              ساعات العمل: من {providerProfile.workTime} - {providerProfile.workTimeEnd}
             </Text>
           </View>
 
-          {isLoggingOut ? (
-            <ActivityIndicator color="#6B7280" size="small" />
+          {providerProfile.categoryName ? (
+            <View className="mt-3 self-stretch flex-row-reverse items-center justify-between rounded-[20px] border border-border bg-[#1A0E24] px-5 py-4">
+              <View className="h-12 w-12 items-center justify-center rounded-full bg-[#2B1937]">
+                <Ionicons name="pricetag-outline" size={22} color={colors.accent} />
+              </View>
+
+              <View className="flex-1 items-end pr-3">
+                <Text className="mb-1 font-cairo text-[12px] text-text-secondary">التصنيف</Text>
+                <Text className="font-cairo-bold text-[18px] text-text">
+                  {providerProfile.categoryName}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+        </View>
+
+        <View className="mb-[14px] rounded-[16px] border border-border bg-[#1A0E24] p-4">
+          <View className="mb-3 flex-row-reverse items-center gap-1.5">
+            <Ionicons name="person-outline" size={15} color={colors.accent} />
+            <Text className="font-cairo-bold text-[17px] text-text">عن المزود</Text>
+          </View>
+
+          <Text className="text-right font-cairo text-[13px] leading-6 text-text-secondary">
+            {providerProfile.about || 'لم تتم إضافة نبذة بعد.'}
+          </Text>
+        </View>
+
+        <View className="mb-[14px] rounded-[16px] border border-border bg-[#1A0E24] p-4">
+          <View className="mb-3 flex-row-reverse items-center gap-1.5">
+            <Ionicons name="flash-outline" size={15} color={colors.accent} />
+            <Text className="font-cairo-bold text-[17px] text-text">الخدمات</Text>
+          </View>
+
+          <View className="flex-row-reverse flex-wrap gap-2">
+            {providerProfile.services.length > 0 ? (
+              providerProfile.services.map((item) => (
+                <View key={item} className="rounded-full border border-border bg-[#2B1937] px-3 py-2">
+                  <Text className="font-cairo text-[12px] text-text">{item}</Text>
+                </View>
+              ))
+            ) : (
+              <Text className="font-cairo text-[13px] text-text-secondary">لا توجد خدمات مضافة بعد.</Text>
+            )}
+          </View>
+        </View>
+
+        <View className="mb-[14px] rounded-[16px] border border-border bg-[#1A0E24] p-4">
+          <View className="mb-3 flex-row-reverse items-center gap-1.5">
+            <Ionicons name="images-outline" size={15} color={colors.accent} />
+            <Text className="font-cairo-bold text-[17px] text-text">الأعمال السابقة</Text>
+          </View>
+
+          {displayedWorks.length > 0 ? (
+            <View className="mb-3 flex-row-reverse flex-wrap gap-2.5">
+              {displayedWorks.map((item, index) => (
+                <View
+                  key={`${item}-${index}`}
+                  className="h-[122px] w-[48%] overflow-hidden rounded-[14px] border border-border bg-[#251531]">
+                  <Image source={{ uri: item }} className="h-full w-full" />
+                </View>
+              ))}
+            </View>
           ) : (
-            <Feather color="#6B7280" name="chevron-left" size={18} />
+            <Text className="text-right font-cairo text-[13px] text-text-secondary">
+              لم تتم إضافة صور للأعمال بعد.
+            </Text>
           )}
-        </Pressable>
-      </View>
+        </View>
+      </ScrollView>
+
+      <SafeAreaView className="absolute bottom-[10px] left-3 right-3 bg-transparent" edges={['bottom']}>
+        <View className="flex-row gap-2.5">
+          <TouchableOpacity
+            className="flex-1 flex-row-reverse items-center justify-center gap-2 rounded-[12px] bg-primary py-[14px]"
+            onPress={handleCall}
+            activeOpacity={0.85}>
+            <Ionicons name="call-outline" size={18} color={colors.text} />
+            <Text className="font-cairo-bold text-[15px] text-text">اتصال</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="flex-1 flex-row-reverse items-center justify-center gap-2 rounded-[12px] bg-[#38E06B] py-[14px]"
+            onPress={handleWhatsApp}
+            activeOpacity={0.85}>
+            <Ionicons name="logo-whatsapp" size={18} color="#08130A" />
+            <Text className="font-cairo-bold text-[15px] text-[#08130A]">واتساب</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </SafeAreaView>
   );
 }
