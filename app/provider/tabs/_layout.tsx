@@ -1,59 +1,70 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
-
-import { colors, typography } from '@/theme';
+import React from "react";
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors, typography } from "@/theme";
 
 export default function ProviderTabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primaryLight,
-        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          direction: 'rtl',
-          flexDirection: 'row-reverse',
+          backgroundColor: colors.background,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
-          borderTopColor: 'rgba(255,255,255,0.12)',
-          backgroundColor: 'rgba(8, 13, 30, 0.94)',
+          height: 60 + insets.bottom,
           paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? 12 : 10,
-          paddingHorizontal: 8,
-          height: Platform.OS === 'ios' ? 78 : 72,
+          paddingBottom: Math.max(insets.bottom, 8),
         },
-        tabBarItemStyle: {
-          minWidth: 0,
-          paddingHorizontal: 4,
-        },
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
-          fontFamily: typography.fontFamily.bold,
-          fontSize: 11,
-          writingDirection: 'rtl',
-          textAlign: 'center',
-          marginTop: 3,
+          fontSize: 12,
+          marginBottom: 6,
+          fontFamily: typography.fontFamily.regular,
         },
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'الرئيسية',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+          href: "/provider/tabs",
+          title: "الرئيسية",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
         }}
       />
+
       <Tabs.Screen
         name="search"
         options={{
-          title: 'البحث',
-          tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
+          href: "/provider/tabs/search",
+          title: "بحث",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search-outline" size={size} color={color} />
+          ),
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'الملف الشخصي',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
+          href: "/provider/tabs/profile",
+          title: "الحساب",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="edit-profile"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
