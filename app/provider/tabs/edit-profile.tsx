@@ -54,6 +54,7 @@ const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export default function EditProfileScreen() {
   const queryClient = useQueryClient();
+
   const sessionQuery = useQuery({
     queryKey: providerSessionQueryKey,
     queryFn: loadProviderSession,
@@ -107,6 +108,12 @@ export default function EditProfileScreen() {
       router.replace('/auth/login');
     }
   }, [session, sessionQuery.isLoading]);
+
+  useEffect(() => {
+    if (statusQuery.data?.applicationStatus === 'pending') {
+      router.replace('/provider/waiting-approval');
+    }
+  }, [statusQuery.data?.applicationStatus]);
 
   useEffect(() => {
     const providerProfile = profileQuery.data;
@@ -173,7 +180,7 @@ export default function EditProfileScreen() {
       queryClient.setQueryData(providerStatusQueryKey, status);
 
       if (submittedForReview || status.applicationStatus === 'pending') {
-        Alert.alert('تم الحفظ', 'تم حفظ الملف وإرساله للمراجعة.');
+        Alert.alert('تم الحفظ', 'تم حفظ الملف، وهو الآن بانتظار موافقة الأدمن.');
         router.replace('/provider/waiting-approval');
         return;
       }
@@ -322,8 +329,8 @@ export default function EditProfileScreen() {
     name: keyof EditProfileFormValues,
     placeholder: string,
     options?: {
-      multiline?: boolean;
       keyboardType?: 'default' | 'phone-pad' | 'email-address' | 'url';
+      multiline?: boolean;
     }
   ) => (
     <Controller
@@ -456,7 +463,7 @@ export default function EditProfileScreen() {
         {renderInput('about', 'اكتب نبذة قصيرة عن خبرتك', { multiline: true })}
 
         <Text className="mb-2 text-right font-cairo-bold text-[18px] text-text">التصنيف</Text>
-        <Text className="mb-[10px] text-right font-cairo text-[13px] text-muted">
+        <Text className="mb-[10px] text-right font-cairo text-[13px] text-text-muted">
           الباك يدعم تصنيفًا واحدًا للمزود، لذلك اختر التصنيف الرئيسي الذي سيظهر في الملف
         </Text>
 
@@ -466,7 +473,7 @@ export default function EditProfileScreen() {
           activeOpacity={0.85}>
           <Text
             className={`flex-1 text-right font-cairo text-[18px] ${
-              selectedCategoryLabel ? 'text-text' : 'text-muted'
+              selectedCategoryLabel ? 'text-text' : 'text-text-muted'
             }`}>
             {selectedCategoryLabel || 'اختر التصنيف'}
           </Text>
@@ -515,7 +522,7 @@ export default function EditProfileScreen() {
         ) : null}
 
         <Text className="mb-2 text-right font-cairo-bold text-[14px] text-text">الخدمات</Text>
-        <Text className="mb-[10px] text-right font-cairo text-[13px] text-muted">
+        <Text className="mb-[10px] text-right font-cairo text-[13px] text-text-muted">
           أضف الخدمات يدويًا لأن الباك يخزنها كقائمة نصية مرتبطة بالمزود
         </Text>
 
@@ -539,7 +546,7 @@ export default function EditProfileScreen() {
         </View>
 
         {services.length === 0 ? (
-          <Text className="mb-[14px] text-right font-cairo text-[13px] text-muted">
+          <Text className="mb-[14px] text-right font-cairo text-[13px] text-text-muted">
             أضف خدمة واحدة على الأقل
           </Text>
         ) : (

@@ -56,10 +56,14 @@ export default function ProviderProfileScreen() {
   }, [session, sessionQuery.isLoading]);
 
   useEffect(() => {
-    if (statusQuery.data?.applicationStatus === 'pending') {
+    if (
+      session?.user?.status?.trim().toLowerCase() === 'inactive' ||
+      statusQuery.data?.applicationStatus === 'pending' ||
+      statusQuery.data?.applicationStatus === 'rejected'
+    ) {
       router.replace('/provider/waiting-approval');
     }
-  }, [statusQuery.data?.applicationStatus]);
+  }, [session?.user?.status, statusQuery.data?.applicationStatus]);
 
   const providerProfile = profileQuery.data;
   const displayedWorks = providerProfile?.works ?? [];
@@ -120,7 +124,7 @@ export default function ProviderProfileScreen() {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color={colors.primaryLight} />
-        <Text className="mt-4 font-cairo text-[14px] text-text-secondary">جارٍ التحقق من الجلسة...</Text>
+        <Text className="mt-4 font-cairo text-[14px] text-text">جارٍ التحقق من الجلسة...</Text>
       </SafeAreaView>
     );
   }
@@ -133,7 +137,7 @@ export default function ProviderProfileScreen() {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color={colors.primaryLight} />
-        <Text className="mt-4 font-cairo text-[14px] text-text-secondary">جارٍ تحميل الملف...</Text>
+        <Text className="mt-4 font-cairo text-[14px] text-text">جارٍ تحميل الملف...</Text>
       </SafeAreaView>
     );
   }
@@ -144,7 +148,7 @@ export default function ProviderProfileScreen() {
         <Text className="mb-3 text-center font-cairo-bold text-[18px] text-text">
           تعذر تحميل الملف
         </Text>
-        <Text className="mb-5 text-center font-cairo text-[14px] leading-6 text-text-secondary">
+        <Text className="mb-5 text-center font-cairo text-[14px] leading-6 text-text">
           {extractErrorMessage(profileQuery.error)}
         </Text>
         <TouchableOpacity
@@ -201,7 +205,7 @@ export default function ProviderProfileScreen() {
 
           <View className="mb-3 flex-row-reverse items-center gap-1">
             <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-            <Text className="font-cairo text-[12px] text-text-secondary">
+            <Text className="font-cairo text-[12px] text-text">
               {providerProfile.location || 'لم يتم تحديد الموقع بعد'}
             </Text>
           </View>
@@ -224,7 +228,7 @@ export default function ProviderProfileScreen() {
 
           <View className="flex-row-reverse items-center gap-1.5 rounded-full border border-border bg-[#1A0E24] px-3 py-2">
             <Ionicons name="time-outline" size={14} color={colors.accent} />
-            <Text className="font-cairo text-[12px] text-text-secondary">
+            <Text className="font-cairo text-[12px] text-text">
               ساعات العمل: من {providerProfile.workTime} - {providerProfile.workTimeEnd}
             </Text>
           </View>
@@ -236,7 +240,7 @@ export default function ProviderProfileScreen() {
               </View>
 
               <View className="flex-1 items-end pr-3">
-                <Text className="mb-1 font-cairo text-[12px] text-text-secondary">التصنيف</Text>
+                <Text className="mb-1 font-cairo text-[12px] text-text">التصنيف</Text>
                 <Text className="font-cairo-bold text-[18px] text-text">
                   {providerProfile.categoryName}
                 </Text>
@@ -251,7 +255,7 @@ export default function ProviderProfileScreen() {
             <Text className="font-cairo-bold text-[17px] text-text">عن المزود</Text>
           </View>
 
-          <Text className="text-right font-cairo text-[13px] leading-6 text-text-secondary">
+          <Text className="text-right font-cairo text-[13px] leading-6 text-text">
             {providerProfile.about || 'لم تتم إضافة نبذة بعد.'}
           </Text>
         </View>
@@ -270,7 +274,7 @@ export default function ProviderProfileScreen() {
                 </View>
               ))
             ) : (
-              <Text className="font-cairo text-[13px] text-text-secondary">لا توجد خدمات مضافة بعد.</Text>
+              <Text className="font-cairo text-[13px] text-text">لا توجد خدمات مضافة بعد.</Text>
             )}
           </View>
         </View>
@@ -292,7 +296,7 @@ export default function ProviderProfileScreen() {
               ))}
             </View>
           ) : (
-            <Text className="text-right font-cairo text-[13px] text-text-secondary">
+            <Text className="text-right font-cairo text-[13px] text-text">
               لم تتم إضافة صور للأعمال بعد.
             </Text>
           )}
@@ -313,8 +317,8 @@ export default function ProviderProfileScreen() {
             className="flex-1 flex-row-reverse items-center justify-center gap-2 rounded-[12px] bg-[#38E06B] py-[14px]"
             onPress={handleWhatsApp}
             activeOpacity={0.85}>
-            <Ionicons name="logo-whatsapp" size={18} color="#08130A" />
-            <Text className="font-cairo-bold text-[15px] text-[#08130A]">واتساب</Text>
+            <Ionicons name="logo-whatsapp" size={18} color={colors.text} />
+            <Text className="font-cairo-bold text-[15px] text-text">واتساب</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

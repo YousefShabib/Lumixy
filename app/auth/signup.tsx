@@ -15,7 +15,7 @@ import {
   authValidationMessages,
 } from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
-import { getRouteForRole } from '@/services/authRoutes';
+import { getRouteForUser } from '@/services/authRoutes';
 import { colors } from '@/theme';
 
 type SignupFormValues = {
@@ -82,7 +82,7 @@ export default function SignupScreen() {
         password: values.password,
         password_confirmation: values.confirmPassword,
       });
-      router.replace(getRouteForRole(response.user.role));
+      router.replace(getRouteForUser(response.user));
     } catch {}
   });
 

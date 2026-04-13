@@ -10,7 +10,7 @@ import AuthScreenShell from '@/components/auth/AuthScreenShell';
 import { authClassNames } from '@/components/auth/authTheme';
 import { EMAIL_REGEX, authValidationMessages } from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
-import { getRouteForRole } from '@/services/authRoutes';
+import { getRouteForUser } from '@/services/authRoutes';
 import { colors } from '@/theme';
 
 type LoginFormValues = {
@@ -57,7 +57,7 @@ export default function LoginScreen() {
         email: values.email.trim(),
         password: values.password,
       });
-      router.replace(getRouteForRole(response.user.role));
+      router.replace(getRouteForUser(response.user));
     } catch {}
   });
 

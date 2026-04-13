@@ -77,6 +77,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isHydrating,
       role: session?.role ?? null,
       setSession: async (nextSession) => {
+        await StorageService.saveSession({
+          token: nextSession.token,
+          role: nextSession.role,
+          user: nextSession.user,
+        });
         setSessionState(nextSession);
       },
       user: session?.user ?? null,
