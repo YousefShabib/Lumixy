@@ -15,7 +15,6 @@ import {
   authValidationMessages,
 } from '@/components/auth/authValidation';
 import useAuth from '@/hooks/useAuth';
-import { getRouteForUser } from '@/services/authRoutes';
 import { colors } from '@/theme';
 
 type SignupFormValues = {
@@ -75,14 +74,14 @@ export default function SignupScreen() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      const response = await register({
+      await register({
         full_name: values.fullName.trim(),
         email: values.email.trim(),
         phone: values.phone.trim(),
         password: values.password,
         password_confirmation: values.confirmPassword,
       });
-      router.replace(getRouteForUser(response.user));
+      router.replace('/provider/register/step-1');
     } catch {}
   });
 

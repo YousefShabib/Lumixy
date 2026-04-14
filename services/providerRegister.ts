@@ -1,23 +1,79 @@
-const BASE_URL = "http:// 192.168.68.117:8000/api";
-
+import { getApiBaseCandidates } from "@/services/api";
 
 export type ServiceCategory = {
   id: string;
   name: string;
 };
 
+function getProviderApiBaseUrl() {
+  return getApiBaseCandidates()[0] ?? "http://127.0.0.1:8000/api";
+}
+
+export class ApiError extends Error {
+  status: number;
+  errors?: Record<string, string[]>;
+
+  constructor(
+    message: string,
+    status: number,
+    errors?: Record<string, string[]>
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.errors = errors;
+  }
+}
+
+async function parseApiResponse(response: Response) {
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await response.json()
+    : null;
+
+  if (!response.ok) {
+    const validationMessage = data?.errors
+      ? Object.values(data.errors)
+          .flat()
+          .filter(Boolean)
+          .join("\n")
+      : null;
+
+    throw new ApiError(
+      validationMessage || data?.message || "Request failed",
+      response.status,
+      data?.errors
+    );
+  }
+
+  return data;
+}
+
+function getFileMetaFromUri(uri: string) {
+  const match = uri.match(/\.([a-zA-Z0-9]+)(?:\?.*)?$/);
+  const extension = match?.[1]?.toLowerCase() || "jpg";
+
+  const typeMap: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+  };
+
+  return {
+    name: `profile.${extension}`,
+    type: typeMap[extension] || "image/jpeg",
+  };
+}
+
 export async function fetchServiceCategories(): Promise<ServiceCategory[]> {
-  const response = await fetch(`${BASE_URL}/service-categories`, {
+  const response = await fetch(`${getProviderApiBaseUrl()}/service-categories`, {
     headers: {
       Accept: "application/json",
     },
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Failed to fetch categories");
-  }
+  const data = await parseApiResponse(response);
 
   if (Array.isArray(data)) return data;
   if (Array.isArray(data.data)) return data.data;
@@ -63,7 +119,7 @@ type ContactPayload = {
 };
 
 export async function registerProvider(payload: RegisterPayload) {
-  const response = await fetch(`${BASE_URL}/provider/auth/register`, {
+  const response = await fetch(`${getProviderApiBaseUrl()}/provider/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -72,27 +128,22 @@ export async function registerProvider(payload: RegisterPayload) {
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Register failed");
-  }
-
-  return data;
+  return parseApiResponse(response);
 }
 
 export async function uploadProviderImage(token: string, imageUri: string) {
   const formData = new FormData();
+  const fileMeta = getFileMetaFromUri(imageUri);
 
   formData.append("profile_image", {
     uri: imageUri,
-    name: "profile.jpg",
-    type: "image/jpeg",
+    name: fileMeta.name,
+    type: fileMeta.type,
   } as any);
 
   formData.append("onboarding_step", "1");
 
-  const response = await fetch(`${BASE_URL}/provider/profile/image`, {
+  const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/image`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -101,17 +152,11 @@ export async function uploadProviderImage(token: string, imageUri: string) {
     body: formData,
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Image upload failed");
-  }
-
-  return data;
+  return parseApiResponse(response);
 }
 
 export async function updateProviderBusiness(token: string, payload: BusinessPayload) {
-  const response = await fetch(`${BASE_URL}/provider/profile/business`, {
+  const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/business`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -121,20 +166,14 @@ export async function updateProviderBusiness(token: string, payload: BusinessPay
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Business update failed");
-  }
-
-  return data;
+  return parseApiResponse(response);
 }
 
 export async function updateProviderLocationSchedule(
   token: string,
   payload: LocationSchedulePayload
 ) {
-  const response = await fetch(`${BASE_URL}/provider/profile/location-schedule`, {
+  const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/location-schedule`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -144,17 +183,11 @@ export async function updateProviderLocationSchedule(
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Location update failed");
-  }
-
-  return data;
+  return parseApiResponse(response);
 }
 
 export async function updateProviderContact(token: string, payload: ContactPayload) {
-  const response = await fetch(`${BASE_URL}/provider/profile/contact`, {
+  const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/contact`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -164,17 +197,11 @@ export async function updateProviderContact(token: string, payload: ContactPaylo
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Contact update failed");
-  }
-
-  return data;
+  return parseApiResponse(response);
 }
 
 export async function submitProviderApplication(token: string) {
-  const response = await fetch(`${BASE_URL}/provider/submit`, {
+  const response = await fetch(`${getProviderApiBaseUrl()}/provider/submit`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -182,11 +209,16 @@ export async function submitProviderApplication(token: string) {
     },
   });
 
-  const data = await response.json();
+  return parseApiResponse(response);
+}
+export async function getProviderApplicationStatus(token: string) {
+  const response = await fetch(`${getProviderApiBaseUrl()}/provider/application-status`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-  if (!response.ok) {
-    throw new Error(data.message || "Submit failed");
-  }
-
-  return data;
+  return parseApiResponse(response);
 }

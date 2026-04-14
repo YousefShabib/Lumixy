@@ -15,6 +15,7 @@ type AuthContextValue = {
   isHydrating: boolean;
   role: StoredAuthRole | null;
   setSession: (session: AuthSessionInput) => Promise<void>;
+  token: string | null;
   user: AuthUser | null;
 };
 
@@ -38,7 +39,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const hydrateSession = async () => {
       try {
         const storedSession = await StorageService.getSession();
-        if (!isMounted || !storedSession) {
+        if (!isMounted) {
+          return;
+        }
+
+        if (!storedSession) {
+          await StorageService.removeSession();
           return;
         }
 
@@ -53,6 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: storedSession.role,
           user: normalizedUser,
         });
+      } catch (error) {
+        console.error('Failed to hydrate auth session:', error);
+        await StorageService.removeSession();
       } finally {
         if (isMounted) {
           setIsHydrating(false);
@@ -84,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setSessionState(nextSession);
       },
+      token: session?.token ?? null,
       user: session?.user ?? null,
     }),
     [isHydrating, session]
