@@ -1,135 +1,76 @@
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-
-import { colors, typography } from '@/theme';
+import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 export default function EntryScreen() {
+  const router = useRouter();
+
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      <View style={styles.glowTop} />
-      <View style={styles.glowBottom} />
+    <SafeAreaView className="flex-1 bg-[#1a0533]">
+      <StatusBar barStyle="light-content" backgroundColor="#1a0533" />
 
-
-
-      <View style={styles.cards}>
-        <Pressable
-          style={[styles.card, styles.cardDark]}
-          onPress={() => router.replace('/(tabs)')}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>⌕</Text>
-          </View>
-          <Text style={styles.cardTitle}>ابحث عن خدمة</Text>
-          <Text style={styles.cardText}>ادخل إلى الصفحة الرئيسية واستكشف مزودي الخدمات بسهولة.</Text>
-        </Pressable>
-
-        <Pressable
-          style={[styles.card, styles.cardPrimary]}
-          onPress={() => router.replace('/auth/login')}>
-          <View style={[styles.badge, styles.badgeLight]}>
-            <Text style={styles.badgeText}>▣</Text>
-          </View>
-          <Text style={styles.cardTitle}>أريد تقديم خدماتي</Text>
-          <Text style={styles.cardText}>ابدأ من مسار مزود الخدمة وكمّل التجهيز بشكل مرتب.</Text>
-        </Pressable>
+      {/* Logo Section */}
+      <View className="items-center mt-16 mb-12">
+        <View className="w-20 h-20 rounded-2xl bg-[#7c3aed] items-center justify-center mb-5 shadow-lg">
+          <Ionicons name="sparkles" size={38} color="#fff" />
+        </View>
+        <Text className="text-white text-4xl font-bold tracking-wide">LUMIXY</Text>
+        <Text
+          className="text-[#c4b5d4] text-sm mt-2 text-center px-8"
+          style={{ textAlign: 'center' }}
+        >
+          الرابط بينك وبين أفضل مزودي الخدمات في فلسطين
+        </Text>
       </View>
-    </View>
+
+      {/* Cards */}
+      <View className="flex-1 px-5 gap-4">
+
+        {/* Search for a service */}
+        <TouchableOpacity
+          onPress={() => router.push('/(tabs)')}
+          className="bg-[#2a1045] rounded-3xl p-6 flex-row items-center justify-between border border-[#3d1a6e]"
+          style={{ minHeight: 130 }}
+          activeOpacity={0.85}
+        >
+          <View className="flex-1 items-end">
+            <Text className="text-white text-2xl font-bold mb-2" style={{ textAlign: 'right' }}>
+              أبحث عن خدمة
+            </Text>
+            <Text className="text-[#a78bca] text-sm leading-5" style={{ textAlign: 'right' }}>
+              تصفح كمستخدم للعثور على ما تحتاجه من خدمات{'\n'}منزلية، تقنية، أو مهنية
+            </Text>
+          </View>
+          <View className="w-11 h-11 rounded-full bg-[#7c3aed]/20 items-center justify-center ml-4">
+            <Ionicons name="search" size={22} color="#a78bfa" />
+          </View>
+        </TouchableOpacity>
+
+        {/* Offer a service */}
+        <TouchableOpacity
+        onPress={() => router.replace('/auth/login')}>
+
+          className="rounded-3xl p-6 flex-row items-center justify-between"
+          style={{ minHeight: 130, backgroundColor: '#7c3aed' }}
+          activeOpacity={0.85}
+        >
+          <View className="flex-1 items-end">
+            <Text className="text-white text-2xl font-bold mb-2" style={{ textAlign: 'right' }}>
+              أريد تقديم خدماتي
+            </Text>
+            <Text className="text-purple-200 text-sm leading-5" style={{ textAlign: 'right' }}>
+              انضم إلى شبكة مزودي الخدمات في لوميكسي وقم{'\n'}بزيادة دخلك وتوسيع قاعدة عملائك
+            </Text>
+          </View>
+          <View className="w-11 h-11 rounded-full bg-white/20 items-center justify-center ml-4">
+            <Ionicons name="briefcase-outline" size={22} color="#fff" />
+          </View>
+        </TouchableOpacity>
+
+      </View>
+
+      <View className="pb-8" />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 24,
-    paddingTop: 72,
-    paddingBottom: 32,
-    justifyContent: 'space-between',
-  },
-  glowTop: {
-    position: 'absolute',
-    top: 48,
-    left: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(109, 40, 217, 0.18)',
-  },
-  glowBottom: {
-    position: 'absolute',
-    right: -50,
-    bottom: 120,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(167, 139, 250, 0.14)',
-  },
-  hero: {
-    alignItems: 'center',
-    gap: 14,
-  },
-  brand: {
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 24,
-    maxWidth: 300,
-  },
-  cards: {
-    gap: 18,
-  },
-  card: {
-    borderRadius: 28,
-    paddingVertical: 28,
-    paddingHorizontal: 22,
-    borderWidth: 1,
-  },
-  cardDark: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  },
-  cardPrimary: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primaryLight,
-  },
-  badge: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: 'rgba(139, 92, 246, 0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-end',
-    marginBottom: 18,
-  },
-  badgeLight: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-  },
-  badgeText: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 24,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontFamily: typography.fontFamily.bold,
-    fontSize: 28,
-    textAlign: 'right',
-    marginBottom: 10,
-  },
-  cardText: {
-    color: 'rgba(255,255,255,0.82)',
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'right',
-  },
-});
