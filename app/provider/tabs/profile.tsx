@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -42,6 +42,7 @@ const arabicDayLabels: Record<ProviderWorkingHour['dayOfWeek'], string> = {
 
 export default function ProviderProfileScreen() {
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const sessionQuery = useQuery({
     queryKey: providerSessionQueryKey,
     queryFn: loadProviderSession,
@@ -194,7 +195,8 @@ export default function ProviderProfileScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView
         className="flex-1 bg-background"
-        contentContainerClassName="px-[14px] pt-[6px] pb-32"
+        contentContainerClassName="px-[14px] pt-[6px]"
+        contentContainerStyle={{ paddingBottom: insets.bottom + 112 }}
         showsVerticalScrollIndicator={false}>
         <View className="relative mb-[22px] min-h-10 items-center justify-center">
           <Text className="font-cairo-bold text-[15px] tracking-[0.9px] text-text">LUMIXY</Text>
@@ -342,7 +344,9 @@ export default function ProviderProfileScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      <SafeAreaView className="absolute bottom-[10px] left-3 right-3 bg-transparent" edges={['bottom']}>
+      <View
+        className="absolute left-3 right-3 bg-transparent"
+        style={{ bottom: insets.bottom + 18 }}>
         <View className="flex-row gap-2.5">
           <TouchableOpacity
             className="flex-1 flex-row-reverse items-center justify-center gap-2 rounded-[12px] bg-primary py-[14px]"
@@ -360,7 +364,7 @@ export default function ProviderProfileScreen() {
             <Text className="font-cairo-bold text-[15px] text-text">واتساب</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     </SafeAreaView>
   );
 }

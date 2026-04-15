@@ -12,10 +12,23 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { prepareImageForUpload } from "../../../services/image-processing";
 import { useProviderRegister } from "../../../store/provider-register-store";
 
 export default function StepOneScreen() {
   const { form, setForm } = useProviderRegister();
+
+  const saveSelectedImage = async (uri: string) => {
+    const preparedUri = await prepareImageForUpload(uri, {
+      compress: 0.72,
+      maxDimension: 1200,
+    });
+
+    setForm((prev) => ({
+      ...prev,
+      imageUri: preparedUri,
+    }));
+  };
 
   const pickFromLibrary = async () => {
     try {
@@ -34,14 +47,11 @@ export default function StepOneScreen() {
       });
 
       if (!result.canceled && result.assets?.length > 0) {
-        setForm((prev) => ({
-          ...prev,
-          imageUri: result.assets[0].uri,
-        }));
+        await saveSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
       console.log("Library error:", error);
-      Alert.alert("خطأ", "صار خطأ أثناء فتح الألبوم.");
+      Alert.alert("خطأ", "صار خطأ أثناء تجهيز صورة الألبوم.");
     }
   };
 
@@ -61,14 +71,11 @@ export default function StepOneScreen() {
       });
 
       if (!result.canceled && result.assets?.length > 0) {
-        setForm((prev) => ({
-          ...prev,
-          imageUri: result.assets[0].uri,
-        }));
+        await saveSelectedImage(result.assets[0].uri);
       }
     } catch (error) {
       console.log("Camera error:", error);
-      Alert.alert("خطأ", "صار خطأ أثناء فتح الكاميرا.");
+      Alert.alert("خطأ", "صار خطأ أثناء تجهيز صورة الكاميرا.");
     }
   };
 

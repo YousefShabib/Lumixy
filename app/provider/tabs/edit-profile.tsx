@@ -28,6 +28,7 @@ import {
   type ProviderGalleryImage,
   type ProviderWorkingHour,
 } from '@/services/provider-api';
+import { prepareImageForUpload } from '@/services/image-processing';
 import {
   getProviderSession,
   loadProviderSession,
@@ -52,7 +53,7 @@ const inputClassName =
 const stackedInputClassName = `${inputClassName} mb-[14px]`;
 const textAreaClassName = `${stackedInputClassName} min-h-[120px]`;
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const workingDays: Array<{ value: ProviderWorkingHour['dayOfWeek']; label: string }> = [
+const workingDays: { value: ProviderWorkingHour['dayOfWeek']; label: string }[] = [
   { value: 'saturday', label: 'السبت' },
   { value: 'sunday', label: 'الأحد' },
   { value: 'monday', label: 'الاثنين' },
@@ -234,7 +235,11 @@ export default function EditProfileScreen() {
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setAvatarUri(result.assets[0].uri);
+      const preparedUri = await prepareImageForUpload(result.assets[0].uri, {
+        compress: 0.72,
+        maxDimension: 1200,
+      });
+      setAvatarUri(preparedUri);
     }
   };
 
@@ -254,7 +259,11 @@ export default function EditProfileScreen() {
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setAvatarUri(result.assets[0].uri);
+      const preparedUri = await prepareImageForUpload(result.assets[0].uri, {
+        compress: 0.72,
+        maxDimension: 1200,
+      });
+      setAvatarUri(preparedUri);
     }
   };
 
@@ -299,7 +308,11 @@ export default function EditProfileScreen() {
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setWorks((prev) => [...prev, { uri: result.assets[0].uri, isRemote: false }]);
+      const preparedUri = await prepareImageForUpload(result.assets[0].uri, {
+        compress: 0.72,
+        maxDimension: 1800,
+      });
+      setWorks((prev) => [...prev, { uri: preparedUri, isRemote: false }]);
     }
   };
 

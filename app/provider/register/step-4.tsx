@@ -14,11 +14,13 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { prepareImageForUpload } from "../../../services/image-processing";
 import { useProviderRegister } from "../../../store/provider-register-store";
 
 export default function StepFourScreen() {
   const { form, setForm } = useProviderRegister();
   const [isSavingImages, setIsSavingImages] = useState(false);
+  const [isPreparingImages, setIsPreparingImages] = useState(false);
   const maxImages = 15;
   const images = form.portfolioImages;
 
@@ -46,12 +48,28 @@ export default function StepFourScreen() {
       return;
     }
 
-    const nextUris = result.assets.map((asset) => asset.uri);
+    try {
+      setIsPreparingImages(true);
 
-    setForm((prev) => ({
-      ...prev,
-      portfolioImages: [...prev.portfolioImages, ...nextUris].slice(0, maxImages),
-    }));
+      const nextUris = await Promise.all(
+        result.assets.map((asset) =>
+          prepareImageForUpload(asset.uri, {
+            compress: 0.72,
+            maxDimension: 1800,
+          })
+        )
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        portfolioImages: [...prev.portfolioImages, ...nextUris].slice(0, maxImages),
+      }));
+    } catch (error) {
+      console.log("Portfolio processing error:", error);
+      Alert.alert("خطأ", "تعذر تجهيز صور المعرض قبل الرفع.");
+    } finally {
+      setIsPreparingImages(false);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -168,14 +186,14 @@ export default function StepFourScreen() {
       <View className="absolute bottom-0 left-0 right-0 px-5 pb-8 pt-4 bg-[#111015] border-t border-[#1e1c24]">
         <TouchableOpacity
           onPress={handleNext}
-          disabled={isSavingImages}
+          disabled={isSavingImages || isPreparingImages}
           className={`rounded-2xl py-4 flex-row items-center justify-center gap-2 ${
-            isSavingImages ? "bg-[#3a2b57]" : "bg-[#7c3aed]"
+            isSavingImages || isPreparingImages ? "bg-[#3a2b57]" : "bg-[#7c3aed]"
           }`}
           activeOpacity={0.85}
         >
           <Text className="text-white font-cairo-bold text-base">
-            {isSavingImages ? "جارٍ التجهيز..." : "الخطوة التالية"}
+            {isSavingImages || isPreparingImages ? "جارٍ تجهيز الصور..." : "الخطوة التالية"}
           </Text>
           <Ionicons name="arrow-forward" size={20} color="#fff" />
         </TouchableOpacity>
