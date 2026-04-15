@@ -17,17 +17,43 @@ export type AdminProviderApplication = {
   submitted_at?: string | null;
 };
 
+export type AdminProviderGalleryItem = {
+  id?: string;
+  image?: string | null;
+  image_path?: string | null;
+  image_url?: string | null;
+  path?: string | null;
+  secure_url?: string | null;
+  url?: string | null;
+};
+
+export type AdminProviderWorkingHour = {
+  day_of_week?: string | null;
+  end_time?: string | null;
+  id?: string;
+  is_active?: boolean;
+  start_time?: string | null;
+};
+
 export type AdminProviderRecord = {
   applications?: AdminProviderApplication[];
+  bio?: string | null;
   category?: {
     id: string;
     name: string;
   } | null;
   city?: string | null;
   custom_services?: string[] | null;
+  facebook_url?: string | null;
+  gallery?: AdminProviderGalleryItem[] | null;
+  gallery_images?: Array<AdminProviderGalleryItem | string> | null;
   id: string;
+  image_url?: string | null;
+  instagram_username?: string | null;
+  location_text?: string | null;
   provider_name?: string | null;
   profile_image?: string | null;
+  profile_image_url?: string | null;
   user?: {
     email: string;
     full_name: string;
@@ -35,6 +61,9 @@ export type AdminProviderRecord = {
     phone?: string | null;
     status: 'active' | 'inactive';
   } | null;
+  whatsapp_number?: string | null;
+  works?: Array<AdminProviderGalleryItem | string> | null;
+  working_hours?: AdminProviderWorkingHour[] | null;
 };
 
 export type PaginatedResponse<T> = {

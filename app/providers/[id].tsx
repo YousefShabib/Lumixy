@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image as NativeImage,
   Linking,
   Pressable,
   ScrollView,
@@ -15,25 +16,124 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 
+import { useAdminSession } from '@/contexts/admin-session-context';
+import { useAdminProvidersQuery } from '@/hooks/admin/use-admin-providers';
+import { resolveApiAssetUrl } from '@/services/api';
+import type {
+  AdminProviderApplication,
+  AdminProviderGalleryItem,
+  AdminProviderRecord,
+} from '@/services/admin-api';
 import {
   fetchPublicProviderDetails,
   formatWorkingDay,
   type PublicProviderDetails,
+  type PublicWorkingHour,
 } from '@/services/public-directory';
 import { colors } from '@/theme';
+
+function getLatestApplication(applications?: AdminProviderApplication[]) {
+  if (!applications || applications.length === 0) {
+    return null;
+  }
+
+  return [...applications].sort((first, second) => {
+    const firstDate = new Date(first.submitted_at ?? first.created_at ?? 0).getTime();
+    const secondDate = new Date(second.submitted_at ?? second.created_at ?? 0).getTime();
+    return secondDate - firstDate;
+  })[0];
+}
+
+function resolveAdminGalleryUrl(item: AdminProviderGalleryItem | string | null | undefined) {
+  if (!item) {
+    return null;
+  }
+
+  if (typeof item === 'string') {
+    return resolveApiAssetUrl(item);
+  }
+
+  return resolveApiAssetUrl(
+    item.image_url ?? item.image_path ?? item.path ?? item.url ?? item.secure_url ?? item.image
+  );
+}
+
+function mapAdminProviderToPublicDetails(record: AdminProviderRecord): PublicProviderDetails {
+  const latestApplication = getLatestApplication(record.applications);
+  const workingHours: PublicWorkingHour[] = (record.working_hours ?? []).map((item, index) => ({
+    id: item.id ?? `${record.id}-working-hour-${index}`,
+    dayOfWeek: item.day_of_week ?? '',
+    startTime: item.start_time ?? '--:--',
+    endTime: item.end_time ?? '--:--',
+    isActive: item.is_active ?? true,
+  }));
+  const galleryImages = [
+    ...(record.gallery ?? []),
+    ...(record.gallery_images ?? []),
+    ...(record.works ?? []),
+  ]
+    .map((item) => resolveAdminGalleryUrl(item))
+    .filter((item): item is string => Boolean(item));
+  const imageUrl =
+    resolveApiAssetUrl(record.profile_image_url ?? record.image_url ?? record.profile_image) ??
+    galleryImages[0] ??
+    null;
+
+  return {
+    id: record.id,
+    name: record.provider_name?.trim() || record.user?.full_name?.trim() || 'مزود بدون اسم',
+    bio: record.bio?.trim() || latestApplication?.notes?.trim() || '',
+    city: record.city?.trim() || '',
+    locationText: record.location_text?.trim() || record.city?.trim() || '',
+    categoryId: record.category?.id ?? null,
+    categoryName: record.category?.name?.trim() || '',
+    categoryIcon: 'storefront-outline',
+    imageUrl,
+    galleryImages,
+    customServices: (record.custom_services ?? []).filter(Boolean),
+    whatsappNumber: record.whatsapp_number ?? record.user?.phone ?? null,
+    instagramUsername: record.instagram_username ?? null,
+    facebookUrl: record.facebook_url ?? null,
+    isFeatured: false,
+    workingHours,
+  };
+}
 
 export default function ProviderDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const providerId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const { isAuthenticated: isAdminAuthenticated } = useAdminSession();
   const providerQuery = useQuery<PublicProviderDetails>({
     queryKey: ['public-provider-details', providerId],
     queryFn: ({ signal }) => fetchPublicProviderDetails(providerId as string, signal),
     enabled: Boolean(providerId),
   });
+  const adminProvidersQuery = useAdminProvidersQuery();
+  const adminFallbackProvider = useMemo(() => {
+    if (!isAdminAuthenticated || !providerId || !adminProvidersQuery.data) {
+      return null;
+    }
 
-  const provider = providerQuery.data;
+    const matchedProvider = adminProvidersQuery.data.find((item) => item.id === providerId);
+    return matchedProvider ? mapAdminProviderToPublicDetails(matchedProvider) : null;
+  }, [adminProvidersQuery.data, isAdminAuthenticated, providerId]);
+
+  const provider = providerQuery.data ?? adminFallbackProvider;
   const displayedWorks = provider?.galleryImages ?? [];
+  const avatarCandidates = useMemo(() => {
+    const uniqueCandidates = new Set<string>();
+
+    for (const candidate of [provider?.imageUrl, displayedWorks[0]]) {
+      if (candidate) {
+        uniqueCandidates.add(candidate);
+      }
+    }
+
+    return Array.from(uniqueCandidates);
+  }, [displayedWorks, provider?.imageUrl]);
+  const [activeAvatarIndex, setActiveAvatarIndex] = useState(0);
+  const [failedWorkItems, setFailedWorkItems] = useState<Record<string, boolean>>({});
   const activeWorkingHours = provider?.workingHours.filter((item) => item.isActive) ?? [];
   const workingDaysText =
     activeWorkingHours.length > 0
@@ -45,6 +145,16 @@ export default function ProviderDetailsScreen() {
           activeWorkingHours[activeWorkingHours.length - 1]?.endTime ?? '--:--'
         }`
       : 'ساعات العمل: غير محددة';
+
+  const activeAvatarUri = avatarCandidates[activeAvatarIndex] ?? null;
+
+  useEffect(() => {
+    setActiveAvatarIndex(0);
+  }, [provider?.id, provider?.imageUrl]);
+
+  useEffect(() => {
+    setFailedWorkItems({});
+  }, [provider?.id, displayedWorks.length]);
 
   const openExternalLink = async (url: string, unsupportedMessage: string) => {
     try {
@@ -103,7 +213,7 @@ export default function ProviderDetailsScreen() {
     void openExternalLink(provider.facebookUrl, 'هذا الرابط غير مدعوم على جهازك.');
   };
 
-  if (providerQuery.isLoading) {
+  if (providerQuery.isLoading && (!isAdminAuthenticated || adminProvidersQuery.isLoading)) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color={colors.primaryLight} />
@@ -112,7 +222,7 @@ export default function ProviderDetailsScreen() {
     );
   }
 
-  if (!provider || providerQuery.isError) {
+  if (!provider) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background px-6">
         <Text className="mb-3 text-center font-cairo-bold text-[18px] text-text">
@@ -125,6 +235,7 @@ export default function ProviderDetailsScreen() {
           className="rounded-[14px] bg-primary px-5 py-3"
           onPress={() => {
             void providerQuery.refetch();
+            void adminProvidersQuery.refetch();
           }}
           activeOpacity={0.85}>
           <Text className="font-cairo-bold text-[14px] text-text">إعادة المحاولة</Text>
@@ -160,8 +271,15 @@ export default function ProviderDetailsScreen() {
                 shadowRadius: 14,
                 elevation: 9,
               }}>
-              {provider.imageUrl ? (
-                <Image source={{ uri: provider.imageUrl }} contentFit="cover" className="h-[92px] w-[92px] rounded-full" />
+              {activeAvatarUri ? (
+                <NativeImage
+                  source={{ uri: activeAvatarUri }}
+                  className="h-[92px] w-[92px] rounded-full"
+                  resizeMode="cover"
+                  onError={() => {
+                    setActiveAvatarIndex((currentIndex) => currentIndex + 1);
+                  }}
+                />
               ) : (
                 <View className="h-[92px] w-[92px] items-center justify-center rounded-full bg-[#2B1937]">
                   <Ionicons name="person-outline" size={32} color={colors.text} />
@@ -262,7 +380,23 @@ export default function ProviderDetailsScreen() {
                 <View
                   key={`${item}-${index}`}
                   className="h-[122px] w-[48%] overflow-hidden rounded-[14px] border border-border bg-[#251531]">
-                  <Image source={{ uri: item }} contentFit="cover" className="h-full w-full" />
+                  {failedWorkItems[`${item}-${index}`] ? (
+                    <View className="h-full w-full items-center justify-center bg-[#2B1937]">
+                      <Ionicons name="image-outline" size={26} color={colors.textSecondary} />
+                    </View>
+                  ) : (
+                    <NativeImage
+                      source={{ uri: item }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                      onError={() => {
+                        setFailedWorkItems((currentState) => ({
+                          ...currentState,
+                          [`${item}-${index}`]: true,
+                        }));
+                      }}
+                    />
+                  )}
                 </View>
               ))}
             </View>

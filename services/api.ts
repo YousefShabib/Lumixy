@@ -119,6 +119,20 @@ function extractHost(value?: string | null) {
   }
 }
 
+function isLocalAssetHost(host?: string | null) {
+  if (!host) {
+    return false;
+  }
+
+  const normalizedHost = host.trim().toLowerCase();
+  return (
+    normalizedHost === 'localhost' ||
+    normalizedHost === '127.0.0.1' ||
+    normalizedHost === '0.0.0.0' ||
+    normalizedHost === '10.0.2.2'
+  );
+}
+
 function getDevServerHosts() {
   const constants = Constants as ExpoConstantsLike;
   const hosts = new Set<string>();
@@ -187,11 +201,29 @@ export function resolveApiAssetUrl(path?: string | null) {
     return trimmedPath;
   }
 
+  const primaryBaseUrl = getApiBaseCandidates()[0];
+
   if (trimmedPath.startsWith('http://') || trimmedPath.startsWith('https://')) {
+    if (!primaryBaseUrl) {
+      return trimmedPath;
+    }
+
+    try {
+      const assetUrl = new URL(trimmedPath);
+      const preferredRootUrl = new URL(primaryBaseUrl.replace(/\/api$/, ''));
+
+      if (isLocalAssetHost(assetUrl.hostname) && assetUrl.hostname !== preferredRootUrl.hostname) {
+        assetUrl.protocol = preferredRootUrl.protocol;
+        assetUrl.hostname = preferredRootUrl.hostname;
+        assetUrl.port = preferredRootUrl.port;
+        return assetUrl.toString();
+      }
+    } catch {
+      return trimmedPath;
+    }
+
     return trimmedPath;
   }
-
-  const primaryBaseUrl = getApiBaseCandidates()[0];
 
   if (!primaryBaseUrl) {
     return null;

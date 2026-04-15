@@ -11,10 +11,14 @@ type ApiCategory = {
 type ApiGalleryItem = {
   id: string;
   image_url?: string | null;
+  imageUrl?: string | null;
   image?: string | null;
   image_path?: string | null;
+  imagePath?: string | null;
   path?: string | null;
   url?: string | null;
+  secure_url?: string | null;
+  secureUrl?: string | null;
   sort_order?: number;
 };
 
@@ -48,8 +52,13 @@ type ApiProvider = {
   category?: ApiCategory | null;
   gallery?: ApiGalleryItem[] | null;
   gallery_images?: ApiGalleryItem[] | string[] | null;
+  galleryImages?: ApiGalleryItem[] | string[] | null;
   works?: ApiGalleryItem[] | string[] | null;
   working_hours?: ApiWorkingHour[] | null;
+  workingHours?: ApiWorkingHour[] | null;
+  provider_profile?: ApiProvider | null;
+  providerProfile?: ApiProvider | null;
+  data?: ApiProvider | null;
 };
 
 type ApiPaginatedResponse<T> = {
@@ -369,14 +378,42 @@ function resolveGalleryItemUrl(item: ApiGalleryItem | string | null | undefined)
   }
 
   return resolveApiAssetUrl(
-    item.image_url ?? item.image ?? item.url ?? item.path ?? item.image_path ?? null
+    item.image_url ??
+      item.imageUrl ??
+      item.image ??
+      item.url ??
+      item.path ??
+      item.image_path ??
+      item.imagePath ??
+      item.secure_url ??
+      item.secureUrl ??
+      null
   );
 }
 
+function unwrapApiProvider(provider: ApiProvider | null | undefined): ApiProvider | null {
+  if (!provider) {
+    return null;
+  }
+
+  return provider.provider_profile ?? provider.providerProfile ?? provider.data ?? provider;
+}
+
 function extractGalleryImages(provider: ApiProvider) {
+  const resolvedProvider = unwrapApiProvider(provider);
+
+  if (!resolvedProvider) {
+    return [];
+  }
+
   const galleryItems: Array<ApiGalleryItem | string> = [];
 
-  for (const source of [provider.gallery, provider.gallery_images, provider.works]) {
+  for (const source of [
+    resolvedProvider.gallery,
+    resolvedProvider.gallery_images,
+    resolvedProvider.galleryImages,
+    resolvedProvider.works,
+  ]) {
     if (!source) {
       continue;
     }
@@ -392,40 +429,47 @@ function extractGalleryImages(provider: ApiProvider) {
 }
 
 function resolveProviderImage(provider: ApiProvider) {
+  const resolvedProvider = unwrapApiProvider(provider);
+
+  if (!resolvedProvider) {
+    return null;
+  }
+
   return resolveApiAssetUrl(
-    provider.profile_image ??
-      provider.profile_image_url ??
-      provider.profileImage ??
-      provider.avatar ??
-      provider.avatar_url ??
-      provider.image ??
-      provider.image_url ??
+    resolvedProvider.profile_image ??
+      resolvedProvider.profile_image_url ??
+      resolvedProvider.profileImage ??
+      resolvedProvider.avatar ??
+      resolvedProvider.avatar_url ??
+      resolvedProvider.image ??
+      resolvedProvider.image_url ??
       null
   );
 }
 
 function normalizeProvider(provider: ApiProvider, index = 0): PublicProvider {
+  const resolvedProvider = unwrapApiProvider(provider) ?? provider;
   const galleryImages = extractGalleryImages(provider);
-  const customServices = toStringArray(provider.custom_services);
-  const categoryName = provider.category?.name?.trim() || 'غير مصنف';
-  const categoryIcon = resolveCategoryIcon(provider.category?.icon || categoryName, index);
+  const customServices = toStringArray(resolvedProvider.custom_services);
+  const categoryName = resolvedProvider.category?.name?.trim() || 'غير مصنف';
+  const categoryIcon = resolveCategoryIcon(resolvedProvider.category?.icon || categoryName, index);
 
   return {
-    id: provider.id,
-    name: provider.provider_name?.trim() || `مزود خدمة ${index + 1}`,
-    bio: provider.bio?.trim() || 'هذا الملف لم يضف نبذة تعريفية بعد.',
-    city: provider.city?.trim() || 'غير محدد',
-    locationText: provider.location_text?.trim() || provider.city?.trim() || 'فلسطين',
-    categoryId: provider.category_id ?? provider.category?.id ?? null,
+    id: resolvedProvider.id,
+    name: resolvedProvider.provider_name?.trim() || `مزود خدمة ${index + 1}`,
+    bio: resolvedProvider.bio?.trim() || 'هذا الملف لم يضف نبذة تعريفية بعد.',
+    city: resolvedProvider.city?.trim() || 'غير محدد',
+    locationText: resolvedProvider.location_text?.trim() || resolvedProvider.city?.trim() || 'فلسطين',
+    categoryId: resolvedProvider.category_id ?? resolvedProvider.category?.id ?? null,
     categoryName,
     categoryIcon,
     imageUrl: resolveProviderImage(provider),
     galleryImages,
     customServices,
-    whatsappNumber: provider.whatsapp_number?.trim() || null,
-    instagramUsername: provider.instagram_username?.trim() || null,
-    facebookUrl: provider.facebook_url?.trim() || null,
-    isFeatured: Boolean(provider.is_featured),
+    whatsappNumber: resolvedProvider.whatsapp_number?.trim() || null,
+    instagramUsername: resolvedProvider.instagram_username?.trim() || null,
+    facebookUrl: resolvedProvider.facebook_url?.trim() || null,
+    isFeatured: Boolean(resolvedProvider.is_featured),
   };
 }
 
@@ -614,15 +658,22 @@ export async function fetchPublicDirectoryWithFallback(
 
 export async function fetchPublicProviderDetails(id: string, signal?: AbortSignal) {
   try {
-    const provider = await apiRequest<ApiProvider>(`providers/${id}`, {
-      method: 'GET',
-      signal,
-    });
+    const provider = unwrapApiProvider(
+      await apiRequest<ApiProvider>(`providers/${id}`, {
+        method: 'GET',
+        signal,
+      })
+    );
+
+    if (!provider) {
+      throw new Error('تعذر العثور على ملف المزود.');
+    }
+
     const normalizedProvider = normalizeProvider(provider);
 
     return {
       ...normalizedProvider,
-      workingHours: normalizeWorkingHours(provider.working_hours),
+      workingHours: normalizeWorkingHours(provider.working_hours ?? provider.workingHours),
     } satisfies PublicProviderDetails;
   } catch (error) {
     const fallbackProvider = getFallbackPublicProviderDetails(id);
