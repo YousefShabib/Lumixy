@@ -49,7 +49,8 @@ export default function EntryScreen() {
 
         {/* Offer a service */}
         <TouchableOpacity
-          onPress={() => router.push('/provider/portfolio')}
+        onPress={() => router.replace('/auth/login')}>
+
           className="rounded-3xl p-6 flex-row items-center justify-between"
           style={{ minHeight: 130, backgroundColor: '#7c3aed' }}
           activeOpacity={0.85}

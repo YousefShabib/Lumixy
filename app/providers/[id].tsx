@@ -1,38 +1,69 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, typography } from '@/theme';
 
 export default function ProviderDetailsScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const router = useRouter();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>تفاصيل المزود</Text>
-      <Text style={styles.text}>المعرف الحالي: {id ?? 'غير محدد'}</Text>
-    </View>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar style="light" />
+
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+          </Pressable>
+          <Text style={styles.headerTitle}>تفاصيل المزود</Text>
+          <View style={styles.backButtonPlaceholder} />
+        </View>
+
+        <View style={styles.emptyBody} />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    justifyContent: 'center',
+  },
+  header: {
+    flexDirection: 'row-reverse',
     alignItems: 'center',
-    padding: 24,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  title: {
-    color: colors.text,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButtonPlaceholder: {
+    width: 40,
+    height: 40,
+  },
+  headerTitle: {
+    color: '#FFFFFF',
     fontFamily: typography.fontFamily.bold,
-    fontSize: 26,
-    marginBottom: 10,
+    fontSize: 18,
   },
-  text: {
-    color: colors.textSecondary,
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 15,
-    textAlign: 'center',
+  emptyBody: {
+    flex: 1,
   },
 });

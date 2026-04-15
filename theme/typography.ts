@@ -4,6 +4,7 @@ export const typography = {
   fontFamily: {
     regular: 'Cairo_400Regular',
     bold: 'Cairo_700Bold',
+    semiBold: 'Cairo_700Bold',
   },
   fontSize: {
     small: 12,
