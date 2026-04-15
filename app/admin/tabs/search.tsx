@@ -426,7 +426,14 @@ export default function ProvidersScreen() {
                   <View
                     key={provider.id}
                     className="rounded-[30px] border border-white/10 bg-[#16141A]/95 px-4.5 py-4">
-                    <View className="flex-row items-start justify-between gap-3.5 px-1">
+                    <Pressable
+                      onPress={() => {
+                        router.push({
+                          pathname: '/providers/[id]',
+                          params: { id: provider.id },
+                        });
+                      }}
+                      className="flex-row items-start justify-between gap-3.5 px-1">
                       <View
                         className={`min-h-[38px] items-center justify-center self-start rounded-full border px-3.5 ${status.badgeClassName}`}>
                         <Text
@@ -491,7 +498,7 @@ export default function ProvidersScreen() {
                           </View>
                         </View>
                       </View>
-                    </View>
+                    </Pressable>
 
                     <View className="mx-1 my-4 h-px bg-white/10" />
 

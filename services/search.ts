@@ -20,6 +20,7 @@ export type SearchResultItem = {
   desc: string;
   customServices: string[];
   isFeatured: boolean;
+  imageUrl: string | null;
 };
 
 export type SearchScreenData = {
@@ -52,6 +53,7 @@ function buildSearchResult(provider: PublicProvider): SearchResultItem {
     desc: provider.bio !== 'هذا الملف لم يضف نبذة تعريفية بعد.' ? provider.bio : servicesSummary,
     customServices: provider.customServices,
     isFeatured: provider.isFeatured,
+    imageUrl: provider.imageUrl,
   };
 }
 

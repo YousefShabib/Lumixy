@@ -11,6 +11,10 @@ type ApiCategory = {
 type ApiGalleryItem = {
   id: string;
   image_url?: string | null;
+  image?: string | null;
+  image_path?: string | null;
+  path?: string | null;
+  url?: string | null;
   sort_order?: number;
 };
 
@@ -26,6 +30,12 @@ type ApiProvider = {
   id: string;
   provider_name?: string | null;
   profile_image?: string | null;
+  profile_image_url?: string | null;
+  profileImage?: string | null;
+  avatar?: string | null;
+  avatar_url?: string | null;
+  image?: string | null;
+  image_url?: string | null;
   bio?: string | null;
   city?: string | null;
   location_text?: string | null;
@@ -37,6 +47,8 @@ type ApiProvider = {
   category_id?: string | null;
   category?: ApiCategory | null;
   gallery?: ApiGalleryItem[] | null;
+  gallery_images?: ApiGalleryItem[] | string[] | null;
+  works?: ApiGalleryItem[] | string[] | null;
   working_hours?: ApiWorkingHour[] | null;
 };
 
@@ -347,10 +359,53 @@ function normalizeCategory(category: ApiCategory, providersCount = 0, index = 0)
   };
 }
 
-function normalizeProvider(provider: ApiProvider, index = 0): PublicProvider {
-  const galleryImages = (provider.gallery ?? [])
-    .map((item) => resolveApiAssetUrl(item.image_url))
+function resolveGalleryItemUrl(item: ApiGalleryItem | string | null | undefined) {
+  if (!item) {
+    return null;
+  }
+
+  if (typeof item === 'string') {
+    return resolveApiAssetUrl(item);
+  }
+
+  return resolveApiAssetUrl(
+    item.image_url ?? item.image ?? item.url ?? item.path ?? item.image_path ?? null
+  );
+}
+
+function extractGalleryImages(provider: ApiProvider) {
+  const galleryItems: Array<ApiGalleryItem | string> = [];
+
+  for (const source of [provider.gallery, provider.gallery_images, provider.works]) {
+    if (!source) {
+      continue;
+    }
+
+    for (const item of source) {
+      galleryItems.push(item);
+    }
+  }
+
+  return galleryItems
+    .map((item) => resolveGalleryItemUrl(item))
     .filter((item): item is string => Boolean(item));
+}
+
+function resolveProviderImage(provider: ApiProvider) {
+  return resolveApiAssetUrl(
+    provider.profile_image ??
+      provider.profile_image_url ??
+      provider.profileImage ??
+      provider.avatar ??
+      provider.avatar_url ??
+      provider.image ??
+      provider.image_url ??
+      null
+  );
+}
+
+function normalizeProvider(provider: ApiProvider, index = 0): PublicProvider {
+  const galleryImages = extractGalleryImages(provider);
   const customServices = toStringArray(provider.custom_services);
   const categoryName = provider.category?.name?.trim() || 'غير مصنف';
   const categoryIcon = resolveCategoryIcon(provider.category?.icon || categoryName, index);
@@ -364,7 +419,7 @@ function normalizeProvider(provider: ApiProvider, index = 0): PublicProvider {
     categoryId: provider.category_id ?? provider.category?.id ?? null,
     categoryName,
     categoryIcon,
-    imageUrl: resolveApiAssetUrl(provider.profile_image),
+    imageUrl: resolveProviderImage(provider),
     galleryImages,
     customServices,
     whatsappNumber: provider.whatsapp_number?.trim() || null,

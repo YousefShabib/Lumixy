@@ -175,6 +175,18 @@ export function resolveApiAssetUrl(path?: string | null) {
     return null;
   }
 
+  if (trimmedPath.startsWith('//')) {
+    return `https:${trimmedPath}`;
+  }
+
+  if (
+    trimmedPath.startsWith('file://') ||
+    trimmedPath.startsWith('content://') ||
+    trimmedPath.startsWith('data:')
+  ) {
+    return trimmedPath;
+  }
+
   if (trimmedPath.startsWith('http://') || trimmedPath.startsWith('https://')) {
     return trimmedPath;
   }

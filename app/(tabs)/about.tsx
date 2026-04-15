@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,14 +18,14 @@ const contactItems = [
   {
     id: 'phone',
     label: 'رقم الهاتف',
-    value: 'غير متوفر حاليا',
-    icon: 'phone-portrait-outline',
+    value: 'غير متوفر حاليًا',
+    icon: 'call-outline',
   },
   {
     id: 'instagram',
     label: 'إنستغرام',
-    value: 'lumixy.app@',
-    icon: 'megaphone-outline',
+    value: '@lumixy.app',
+    icon: 'logo-instagram',
   },
 ] as const;
 
@@ -35,17 +36,19 @@ function ContactCard({
 }: (typeof contactItems)[number]) {
   return (
     <Pressable style={({ pressed }) => [styles.contactCard, pressed && styles.cardPressed]}>
-      <View style={styles.contactIconWrap}>
-        <Ionicons
-          name={icon as React.ComponentProps<typeof Ionicons>['name']}
-          size={18}
-          color="#9D4DFF"
-        />
-      </View>
+      <View style={styles.contactMain}>
+        <View style={styles.contactIconWrap}>
+          <Ionicons
+            name={icon as React.ComponentProps<typeof Ionicons>['name']}
+            size={18}
+            color="#9D4DFF"
+          />
+        </View>
 
-      <View style={styles.contactTextWrap}>
-        <Text style={styles.contactLabel}>{label}</Text>
-        <Text style={styles.contactValue}>{value}</Text>
+        <View style={styles.contactTextWrap}>
+          <Text style={styles.contactLabel}>{label}</Text>
+          <Text style={styles.contactValue}>{value}</Text>
+        </View>
       </View>
 
       <Ionicons name="chevron-back" size={18} color="#61577A" />
@@ -74,29 +77,34 @@ export default function AboutScreen() {
 
             <Text style={styles.brandName}>Lumixy</Text>
             <Text style={styles.brandDescription}>
-              منصة ربط مقدمي الخدمات مع العملاء في{'\n'}فلسطين
+              منصة تربط بين مقدمي الخدمات والعملاء في فلسطين،{'\n'}
+              بطريقة أسهل وأوضح وأكثر احترافية.
             </Text>
           </View>
 
-          <LinearGradient
-            colors={['#6A2CE0', '#8E45FF']}
-            start={{ x: 0, y: 0.15 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.ctaCard}>
-            <View style={styles.ctaTextWrap}>
-              <Text style={styles.ctaTitle}>هل أنت مقدم خدمة؟</Text>
-              <Text style={styles.ctaText}>انضم إلينا وابدأ بعرض خدماتك</Text>
-            </View>
+          <Pressable
+            onPress={() => router.push('/auth/signup')}
+            style={({ pressed }) => [styles.ctaPressable, pressed && styles.cardPressed]}>
+            <LinearGradient
+              colors={['#6A2CE0', '#8E45FF']}
+              start={{ x: 0, y: 0.15 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.ctaCard}>
+              <View style={styles.ctaTextWrap}>
+                <Text style={styles.ctaTitle}>هل أنت مقدم خدمة؟</Text>
+                <Text style={styles.ctaText}>انضم إلى المنصة وابدأ بعرض خدماتك للعملاء.</Text>
+              </View>
 
-            <View style={styles.ctaIconWrap}>
-              <Ionicons name="briefcase-outline" size={21} color="#FFFFFF" />
-            </View>
+              <View style={styles.ctaIconWrap}>
+                <Ionicons name="briefcase-outline" size={21} color="#FFFFFF" />
+              </View>
 
-            <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.24)" />
-          </LinearGradient>
+              <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.24)" />
+            </LinearGradient>
+          </Pressable>
 
           <View style={styles.sectionHeader}>
-            <Ionicons name="help-circle-outline" size={15} color="#9D4DFF" />
+            <Ionicons name="chatbubbles-outline" size={15} color="#9D4DFF" />
             <Text style={styles.sectionTitle}>تواصل معنا</Text>
           </View>
 
@@ -198,6 +206,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 8,
   },
+  ctaPressable: {
+    marginBottom: 34,
+  },
   ctaIconWrap: {
     width: 42,
     height: 42,
@@ -239,33 +250,39 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   contactCard: {
-    minHeight: 58,
+    width: '100%',
     borderRadius: 21,
     backgroundColor: '#17131B',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.05)',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  contactMain: {
+    flex: 1,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
   },
   contactTextWrap: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   contactLabel: {
     color: '#8A819B',
     fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginBottom: 2,
-    textAlign: 'center',
+    textAlign: 'right',
   },
   contactValue: {
     color: '#E8E5F1',
-    fontFamily: typography.fontFamily.regular,
-    fontSize: 13,
-    textAlign: 'center',
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 15,
+    textAlign: 'right',
   },
   contactIconWrap: {
     width: 32,

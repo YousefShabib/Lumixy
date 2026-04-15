@@ -104,13 +104,15 @@ export default function StepTwoScreen() {
 
             <View className="mb-4 flex-row gap-2">
               <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
+              <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
+              <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
               <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
               <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
             </View>
 
             <View className="mb-[18px] self-start rounded-full border border-[#5B21B6] bg-[#221133] px-3 py-1.5">
               <Text className="font-cairo-bold text-[12px] text-[#D8B4FE]">
-                الخطوة 2 من 3
+                الخطوة 2 من 5
               </Text>
             </View>
 
@@ -209,7 +211,7 @@ export default function StepTwoScreen() {
             </View>
 
             <View className="mb-[18px]">
-              <Text className="text-right font-cairo-bold text-[28px] text-white">
+              <Text className="text-right font-cairo-bold text-[20px] text-white">
                 الخدمات التي تقدمها
               </Text>
               <Text className="mb-4 mt-1 text-right font-cairo text-[14px] leading-6 text-[#7C7C88]">
@@ -281,7 +283,7 @@ export default function StepTwoScreen() {
                 router.push("/provider/register/step-3");
               }}
             >
-              <Ionicons name="arrow-back" size={18} color="#fff" />
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
               <Text className="font-cairo-bold text-[16px] text-white">
                 الخطوة التالية
               </Text>

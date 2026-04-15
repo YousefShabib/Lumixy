@@ -1,38 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useProviderRegister } from "../../../store/provider-register-store";
 
-const cities = [
-  "رام الله",
-  "نابلس",
-  "جنين",
-  "طولكرم",
-  "طوباس",
-  "الخليل",
-  "بيت لحم",
-];
-
-const workingDaysList = [
-  "السبت",
-  "الأحد",
-  "الاثنين",
-  "الثلاثاء",
-  "الأربعاء",
-  "الخميس",
-  "الجمعة",
-];
-
+const cities = ["رام الله", "نابلس", "جنين", "طولكرم", "طوباس", "الخليل", "بيت لحم"];
+const workingDaysList = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
 const timeOptions = ["08:00", "09:00", "10:00", "17:00", "18:00", "19:00"];
 
 const selectorClasses =
@@ -42,7 +17,6 @@ const dropdownClasses =
 
 export default function StepThreeScreen() {
   const { form, setForm } = useProviderRegister();
-
   const [showCities, setShowCities] = useState(false);
   const [showFromTimes, setShowFromTimes] = useState(false);
   const [showToTimes, setShowToTimes] = useState(false);
@@ -97,10 +71,11 @@ export default function StepThreeScreen() {
               <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
               <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
               <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
+              <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
             </View>
 
             <View className="mb-[18px] self-start rounded-full border border-[#5B21B6] bg-[#221133] px-3 py-1.5">
-              <Text className="font-cairo-bold text-[12px] text-[#D8B4FE]">الخطوة 3 من 4</Text>
+              <Text className="font-cairo-bold text-[12px] text-[#D8B4FE]">الخطوة 3 من 5</Text>
             </View>
 
             <Text className="mb-2 text-right font-cairo-bold text-[32px] text-white">
@@ -125,18 +100,10 @@ export default function StepThreeScreen() {
                 onPress={() => setShowCities((prev) => !prev)}
                 activeOpacity={0.8}
               >
-                <Text
-                  className={`font-cairo text-[14px] ${
-                    form.city ? "text-white" : "text-[#6F6F7B]"
-                  }`}
-                >
+                <Text className={`font-cairo text-[14px] ${form.city ? "text-white" : "text-[#6F6F7B]"}`}>
                   {form.city || "اختر المدينة"}
                 </Text>
-                <Ionicons
-                  name={showCities ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  color="#A1A1AA"
-                />
+                <Ionicons name={showCities ? "chevron-up" : "chevron-down"} size={18} color="#A1A1AA" />
               </TouchableOpacity>
 
               {showCities && (
@@ -159,9 +126,7 @@ export default function StepThreeScreen() {
 
             <View className="mb-[18px] rounded-[22px] border border-[#24172F] bg-[#121218] p-4">
               <View className="mb-2 flex-row-reverse items-center gap-1.5">
-                <Text className="font-cairo-bold text-[16px] text-white">
-                  ساعات العمل اليومية
-                </Text>
+                <Text className="font-cairo-bold text-[16px] text-white">ساعات العمل اليومية</Text>
                 <Ionicons name="time-outline" size={16} color="#A855F7" />
               </View>
 
@@ -195,9 +160,7 @@ export default function StepThreeScreen() {
                             setShowToTimes(false);
                           }}
                         >
-                          <Text className="text-right font-cairo text-[14px] text-white">
-                            {time}
-                          </Text>
+                          <Text className="text-right font-cairo text-[14px] text-white">{time}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -228,9 +191,7 @@ export default function StepThreeScreen() {
                             setShowFromTimes(false);
                           }}
                         >
-                          <Text className="text-right font-cairo text-[14px] text-white">
-                            {time}
-                          </Text>
+                          <Text className="text-right font-cairo text-[14px] text-white">{time}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -250,9 +211,7 @@ export default function StepThreeScreen() {
                     <TouchableOpacity
                       key={day}
                       className={`rounded-full border px-[14px] py-2 ${
-                        isSelected
-                          ? "border-[#A855F7] bg-[#7C3AED]"
-                          : "border-[#473656] bg-[#2A2132]"
+                        isSelected ? "border-[#A855F7] bg-[#7C3AED]" : "border-[#473656] bg-[#2A2132]"
                       }`}
                       onPress={() => toggleDay(day)}
                     >
@@ -269,29 +228,11 @@ export default function StepThreeScreen() {
               </View>
             </View>
 
-            <View className="relative mb-[22px] h-[150px] items-center justify-center overflow-hidden rounded-[22px] bg-[#BFA8D8]">
-              <View className="absolute inset-[18px] flex-row items-start justify-between">
-                <Ionicons name="location" size={18} color="rgba(255,255,255,0.15)" />
-                <Ionicons name="location" size={16} color="rgba(255,255,255,0.12)" />
-                <Ionicons name="location" size={14} color="rgba(255,255,255,0.12)" />
-              </View>
-
-              <View className="h-[54px] w-[54px] items-center justify-center rounded-full bg-[#8B5CF6] shadow-lg">
-                <Ionicons name="location" size={24} color="#FFFFFF" />
-              </View>
-
-              <View className="absolute bottom-3 left-4 right-4 rounded-[14px] bg-black/45 px-3 py-2.5">
-                <Text className="text-center font-cairo text-[11px] text-[#F5F3FF]">
-                  سيتم استخدام هذا الموقع لتوجيه العملاء القريبين منك
-                </Text>
-              </View>
-            </View>
-
             <TouchableOpacity
               className="mt-2 h-[58px] flex-row-reverse items-center justify-center gap-2 rounded-[18px] bg-[#9333EA]"
               onPress={handleNext}
             >
-              <Ionicons name="arrow-back" size={18} color="#fff" />
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
               <Text className="font-cairo-bold text-[16px] text-white">الخطوة التالية</Text>
             </TouchableOpacity>
           </View>

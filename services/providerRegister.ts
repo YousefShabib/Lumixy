@@ -155,6 +155,31 @@ export async function uploadProviderImage(token: string, imageUri: string) {
   return parseApiResponse(response);
 }
 
+export async function uploadProviderGallery(token: string, imageUris: string[]) {
+  for (const [index, imageUri] of imageUris.entries()) {
+    const fileMeta = getFileMetaFromUri(imageUri);
+    const formData = new FormData();
+
+    formData.append("sort_order", String(index));
+    formData.append("image", {
+      uri: imageUri,
+      name: `gallery-${index + 1}.${fileMeta.name.split(".").pop() || "jpg"}`,
+      type: fileMeta.type,
+    } as any);
+
+    const response = await fetch(`${getProviderApiBaseUrl()}/provider/gallery`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    await parseApiResponse(response);
+  }
+}
+
 export async function updateProviderBusiness(token: string, payload: BusinessPayload) {
   const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/business`, {
     method: "PUT",

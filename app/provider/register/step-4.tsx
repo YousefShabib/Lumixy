@@ -1,336 +1,184 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
+  StatusBar,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
+  type DimensionValue,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  ApiError,
-  registerProvider,
-  submitProviderApplication,
-  updateProviderBusiness,
-  updateProviderContact,
-  updateProviderLocationSchedule,
-  uploadProviderImage,
-} from "../../../services/providerRegister";
+
 import { useProviderRegister } from "../../../store/provider-register-store";
-
-const inputClasses =
-  "h-[52px] rounded-2xl border border-[#27272A] bg-[#111115] px-4 text-right font-cairo text-[14px] text-white";
-
-const dayMap: Record<string, string> = {
-  السبت: "saturday",
-  الأحد: "sunday",
-  الاثنين: "monday",
-  الثلاثاء: "tuesday",
-  الأربعاء: "wednesday",
-  الخميس: "thursday",
-  الجمعة: "friday",
-};
 
 export default function StepFourScreen() {
   const { form, setForm } = useProviderRegister();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingImages, setIsSavingImages] = useState(false);
+  const maxImages = 15;
+  const images = form.portfolioImages;
 
-  const buildLocationText = () =>
-    [form.address.trim(), form.locationDescription.trim()]
-      .filter(Boolean)
-      .join(" - ");
+  const gridItems = useMemo(
+    () => (images.length < maxImages ? [...images, "ADD_SLOT"] : images),
+    [images]
+  );
 
-  const buildHoursPayload = () =>
-    form.workingDays
-      .map((day) => dayMap[day])
-      .filter((day): day is string => Boolean(day))
-      .map((day_of_week) => ({
-        day_of_week,
-        start_time: form.fromTime,
-        end_time: form.toTime,
-        is_active: true,
-      }));
+  const pickImages = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  const validateForm = () => {
-    if (!form.fullName.trim()) {
-      Alert.alert("تنبيه", "أدخل الاسم الكامل أولًا.");
-      return false;
-    }
-
-    if (!form.email.trim()) {
-      Alert.alert("تنبيه", "أدخل البريد الإلكتروني أولًا.");
-      return false;
-    }
-
-    if (!form.phone.trim()) {
-      Alert.alert("تنبيه", "أدخل رقم الجوال أولًا.");
-      return false;
-    }
-
-    if (!form.whatsappNumber.trim()) {
-      Alert.alert("تنبيه", "أدخل رقم الواتساب أولًا.");
-      return false;
-    }
-
-    if (!form.password.trim()) {
-      Alert.alert("تنبيه", "أدخل كلمة المرور أولًا.");
-      return false;
-    }
-
-    if (form.password.length < 8) {
-      Alert.alert("تنبيه", "كلمة المرور يجب أن تكون 8 أحرف على الأقل.");
-      return false;
-    }
-
-    if (form.password !== form.passwordConfirmation) {
-      Alert.alert("تنبيه", "تأكيد كلمة المرور غير مطابق.");
-      return false;
-    }
-
-    if (form.fromTime >= form.toTime) {
-      Alert.alert("تنبيه", "وقت بداية العمل يجب أن يكون قبل وقت النهاية.");
-      return false;
-    }
-
-    if (buildHoursPayload().length === 0) {
-      Alert.alert("تنبيه", "أيام العمل غير صالحة، ارجع للخطوة السابقة واخترها من جديد.");
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) {
+    if (status !== "granted") {
+      Alert.alert("الإذن مطلوب", "يرجى السماح بالوصول إلى مكتبة الصور.");
       return;
     }
 
-    setIsSubmitting(true);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 0.8,
+      selectionLimit: maxImages - images.length,
+    });
+
+    if (result.canceled) {
+      return;
+    }
+
+    const nextUris = result.assets.map((asset) => asset.uri);
+
+    setForm((prev) => ({
+      ...prev,
+      portfolioImages: [...prev.portfolioImages, ...nextUris].slice(0, maxImages),
+    }));
+  };
+
+  const removeImage = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      portfolioImages: prev.portfolioImages.filter((_, currentIndex) => currentIndex !== index),
+    }));
+  };
+
+  const handleNext = async () => {
+    setIsSavingImages(true);
 
     try {
-      let token = form.token;
-
-      if (!token) {
-        const registerResult = await registerProvider({
-          full_name: form.fullName.trim(),
-          email: form.email.trim(),
-          phone: form.phone.trim(),
-          password: form.password,
-          password_confirmation: form.passwordConfirmation,
-        });
-
-        token = registerResult.token;
-
-        setForm((prev) => ({
-          ...prev,
-          token,
-        }));
-      }
-
-      if (!token) {
-        throw new Error("Missing auth token after registration");
-      }
-
-      if (form.imageUri) {
-        await uploadProviderImage(token, form.imageUri);
-      }
-
-      await updateProviderBusiness(token, {
-        provider_name: form.displayName.trim(),
-        bio: form.bio.trim(),
-        category_id: form.categoryId,
-        custom_services: form.services,
-        onboarding_step: 2,
-      });
-
-      await updateProviderLocationSchedule(token, {
-        city: form.city.trim(),
-        location_text: buildLocationText(),
-        onboarding_step: 3,
-        hours: buildHoursPayload(),
-      });
-
-      await updateProviderContact(token, {
-        whatsapp_number: form.whatsappNumber.trim(),
-        onboarding_step: 4,
-      });
-
-      try {
-        await submitProviderApplication(token);
-      } catch (error) {
-        if (
-          !(error instanceof ApiError) ||
-          !error.message.toLowerCase().includes("pending application")
-        ) {
-          throw error;
-        }
-      }
-
-      router.replace("/provider/register/waiting-approval");
-    } catch (error) {
-      const message =
-        error instanceof ApiError || error instanceof Error
-          ? error.message
-          : "حدث خطأ أثناء إرسال الطلب.";
-
-      Alert.alert("خطأ", message);
+      router.push("/provider/register/step-5");
     } finally {
-      setIsSubmitting(false);
+      setIsSavingImages(false);
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0A0A0F" }} edges={["top", "bottom"]}>
-      <View className="flex-1 bg-[#050507]">
-        <ScrollView
-          className="flex-1"
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerClassName="px-5 pb-6 pt-5"
+    <SafeAreaView className="flex-1 bg-[#111015]">
+      <StatusBar barStyle="light-content" backgroundColor="#111015" />
+
+      <View className="flex-row items-center justify-between px-5 pt-4 pb-3">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          className="w-10 h-10 rounded-full bg-[#1e1c24] items-center justify-center"
         >
-          <View className="mb-[18px] flex-row-reverse items-center justify-between">
-            <Text className="font-cairo-bold text-[18px] text-white">
-              تسجيل مزود الخدمة
-            </Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-forward" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          <Ionicons name="arrow-forward" size={20} color="#fff" />
+        </TouchableOpacity>
+        <Text className="text-white text-lg font-cairo-bold">تسجيل مزود الخدمة</Text>
+        <View className="w-10" />
+      </View>
 
-          <View className="mb-4 flex-row gap-2">
-            <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
-            <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
-            <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
-            <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
-          </View>
+      <ScrollView className="flex-1 px-5" contentContainerStyle={{ paddingBottom: 120 }}>
+        <View className="mb-4 flex-row gap-2">
+          <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
+          <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
+          <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
+          <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
+          <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
+        </View>
 
-          <View className="mb-[18px] self-start rounded-full border border-[#5B21B6] bg-[#221133] px-3 py-1.5">
-            <Text className="font-cairo-bold text-[12px] text-[#D8B4FE]">
-              الخطوة 4 من 4
-            </Text>
-          </View>
+        <View className="mb-4 self-start rounded-full border border-[#5B21B6] bg-[#221133] px-3 py-1.5">
+          <Text className="font-cairo-bold text-[12px] text-[#D8B4FE]">الخطوة 4 من 5</Text>
+        </View>
 
-          <Text className="mb-2 text-right font-cairo-bold text-[28px] text-white">
-            بيانات الحساب والتواصل
+        <View className="items-end mb-6">
+          <Text className="text-white text-2xl font-cairo-bold mb-2" style={{ textAlign: "right" }}>
+            معرض الأعمال
           </Text>
-          <Text className="mb-6 text-right font-cairo text-[14px] leading-[21px] text-[#B5B5C3]">
-            هذه آخر خطوة. سننشئ الحساب، نرفع بياناتك التي أدخلتها، ثم نرسل الطلب
-            للمراجعة مباشرة.
+          <Text className="text-[#a78bca] text-sm leading-6 font-cairo" style={{ textAlign: "right" }}>
+            قم بتحميل صور لأعمالك السابقة لجذب المزيد من العملاء{'\n'}وبناء الثقة.
           </Text>
+        </View>
 
-          <View className="mb-[18px]">
-            <Text className="mb-2.5 text-right font-cairo-bold text-[14px] text-white">
-              الاسم الكامل
-            </Text>
-            <TextInput
-              placeholder="أدخل الاسم الكامل"
-              placeholderTextColor="#6F6F7B"
-              className={inputClasses}
-              value={form.fullName}
-              onChangeText={(text) =>
-                setForm((prev) => ({ ...prev, fullName: text }))
-              }
-            />
-          </View>
-
-          <View className="mb-[18px]">
-            <Text className="mb-2.5 text-right font-cairo-bold text-[14px] text-white">
-              البريد الإلكتروني
-            </Text>
-            <TextInput
-              placeholder="name@example.com"
-              placeholderTextColor="#6F6F7B"
-              className={inputClasses}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={form.email}
-              onChangeText={(text) => setForm((prev) => ({ ...prev, email: text }))}
-            />
-          </View>
-
-          <View className="mb-[18px]">
-            <Text className="mb-2.5 text-right font-cairo-bold text-[14px] text-white">
-              رقم الجوال
-            </Text>
-            <TextInput
-              placeholder="05XXXXXXXX"
-              placeholderTextColor="#6F6F7B"
-              className={inputClasses}
-              keyboardType="phone-pad"
-              value={form.phone}
-              onChangeText={(text) => setForm((prev) => ({ ...prev, phone: text }))}
-            />
-          </View>
-
-          <View className="mb-[18px]">
-            <Text className="mb-2.5 text-right font-cairo-bold text-[14px] text-white">
-              رقم الواتساب
-            </Text>
-            <TextInput
-              placeholder="05XXXXXXXX"
-              placeholderTextColor="#6F6F7B"
-              className={inputClasses}
-              keyboardType="phone-pad"
-              value={form.whatsappNumber}
-              onChangeText={(text) =>
-                setForm((prev) => ({ ...prev, whatsappNumber: text }))
-              }
-            />
-          </View>
-
-          <View className="mb-[18px]">
-            <Text className="mb-2.5 text-right font-cairo-bold text-[14px] text-white">
-              كلمة المرور
-            </Text>
-            <TextInput
-              placeholder="8 أحرف على الأقل"
-              placeholderTextColor="#6F6F7B"
-              className={inputClasses}
-              secureTextEntry
-              value={form.password}
-              onChangeText={(text) =>
-                setForm((prev) => ({ ...prev, password: text }))
-              }
-            />
-          </View>
-
-          <View className="mb-6">
-            <Text className="mb-2.5 text-right font-cairo-bold text-[14px] text-white">
-              تأكيد كلمة المرور
-            </Text>
-            <TextInput
-              placeholder="أعد إدخال كلمة المرور"
-              placeholderTextColor="#6F6F7B"
-              className={inputClasses}
-              secureTextEntry
-              value={form.passwordConfirmation}
-              onChangeText={(text) =>
-                setForm((prev) => ({ ...prev, passwordConfirmation: text }))
-              }
-            />
-          </View>
-
+        {images.length === 0 && (
           <TouchableOpacity
-            className={`mt-2 h-[58px] flex-row-reverse items-center justify-center gap-2 rounded-[18px] ${
-              isSubmitting ? "bg-[#6B21A8]" : "bg-[#9333EA]"
-            }`}
-            disabled={isSubmitting}
-            onPress={handleSubmit}
+            onPress={pickImages}
+            className="border-2 border-dashed border-[#3d1a6e] rounded-3xl p-8 items-center justify-center bg-[#1a1026] mb-6"
+            activeOpacity={0.8}
           >
-            {isSubmitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-            )}
-            <Text className="font-cairo-bold text-[16px] text-white">
-              {isSubmitting ? "جاري إرسال الطلب..." : "إرسال الطلب"}
-            </Text>
+            <View className="w-16 h-16 rounded-2xl bg-[#7c3aed]/20 items-center justify-center mb-4">
+              <Ionicons name="camera-outline" size={30} color="#a78bfa" />
+            </View>
+            <Text className="text-white text-base font-cairo-bold mb-1">إضافة صور جديدة</Text>
+            <Text className="text-[#6b6480] text-xs font-cairo">يمكنك رفع حتى 15 صورة</Text>
+            <TouchableOpacity
+              onPress={pickImages}
+              className="mt-4 bg-[#7c3aed] rounded-xl px-6 py-2.5"
+            >
+              <Text className="text-white text-sm font-cairo-bold">اختر ملفات</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
-        </ScrollView>
+        )}
+
+        {images.length > 0 && (
+          <View className="mb-4">
+            <Text className="text-[#c4b5d4] text-sm mb-3 font-cairo" style={{ textAlign: "right" }}>
+              الصور المرفوعة ({images.length})
+            </Text>
+            <View className="flex-row flex-wrap gap-2">
+              {gridItems.map((item, index) =>
+                item === "ADD_SLOT" ? (
+                  <TouchableOpacity
+                    key="add"
+                    onPress={pickImages}
+                    className="bg-[#1e1c24] rounded-2xl border border-dashed border-[#3d1a6e] items-center justify-center"
+                    style={{ width: "31%" as DimensionValue, aspectRatio: 1 }}
+                  >
+                    <Ionicons name="add" size={28} color="#7c3aed" />
+                  </TouchableOpacity>
+                ) : (
+                  <View
+                    key={item}
+                    className="rounded-2xl overflow-hidden"
+                    style={{ width: "31%" as DimensionValue, aspectRatio: 1 }}
+                  >
+                    <Image source={{ uri: item }} className="w-full h-full" />
+                    <TouchableOpacity
+                      onPress={() => removeImage(index)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 items-center justify-center"
+                    >
+                      <Ionicons name="close" size={14} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )
+              )}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      <View className="absolute bottom-0 left-0 right-0 px-5 pb-8 pt-4 bg-[#111015] border-t border-[#1e1c24]">
+        <TouchableOpacity
+          onPress={handleNext}
+          disabled={isSavingImages}
+          className={`rounded-2xl py-4 flex-row items-center justify-center gap-2 ${
+            isSavingImages ? "bg-[#3a2b57]" : "bg-[#7c3aed]"
+          }`}
+          activeOpacity={0.85}
+        >
+          <Text className="text-white font-cairo-bold text-base">
+            {isSavingImages ? "جارٍ التجهيز..." : "الخطوة التالية"}
+          </Text>
+          <Ionicons name="arrow-forward" size={20} color="#fff" />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

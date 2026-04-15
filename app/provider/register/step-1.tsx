@@ -109,10 +109,12 @@ export default function StepOneScreen() {
               <View className="h-1 flex-1 rounded-full bg-[#A855F7]" />
               <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
               <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
+              <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
+              <View className="h-1 flex-1 rounded-full bg-[#3A2257]" />
             </View>
 
             <View className="mb-[18px] self-start rounded-full border border-[#5B21B6] bg-[#221133] px-3 py-1.5">
-              <Text className="font-cairo-bold text-[12px] text-[#D8B4FE]">الخطوة 1 من 3</Text>
+              <Text className="font-cairo-bold text-[12px] text-[#D8B4FE]">الخطوة 1 من 5</Text>
             </View>
 
             <Text className="mb-2.5 text-right font-cairo-bold text-[26px] text-white">
@@ -174,7 +176,7 @@ export default function StepOneScreen() {
                 router.push("/provider/register/step-2");
               }}
             >
-              <Ionicons name="arrow-back" size={18} color="#fff" />
+              <Ionicons name="arrow-forward" size={18} color="#fff" />
               <Text className="font-cairo-bold text-[16px] text-white">التالي</Text>
             </TouchableOpacity>
           </View>

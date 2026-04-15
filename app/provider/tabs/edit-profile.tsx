@@ -26,6 +26,7 @@ import {
   providerStatusQueryKey,
   saveProviderProfile,
   type ProviderGalleryImage,
+  type ProviderWorkingHour,
 } from '@/services/provider-api';
 import {
   getProviderSession,
@@ -51,6 +52,15 @@ const inputClassName =
 const stackedInputClassName = `${inputClassName} mb-[14px]`;
 const textAreaClassName = `${stackedInputClassName} min-h-[120px]`;
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const workingDays: Array<{ value: ProviderWorkingHour['dayOfWeek']; label: string }> = [
+  { value: 'saturday', label: 'السبت' },
+  { value: 'sunday', label: 'الأحد' },
+  { value: 'monday', label: 'الاثنين' },
+  { value: 'tuesday', label: 'الثلاثاء' },
+  { value: 'wednesday', label: 'الأربعاء' },
+  { value: 'thursday', label: 'الخميس' },
+  { value: 'friday', label: 'الجمعة' },
+];
 
 export default function EditProfileScreen() {
   const queryClient = useQueryClient();
@@ -88,6 +98,9 @@ export default function EditProfileScreen() {
   const [services, setServices] = useState<string[]>([]);
   const [serviceInput, setServiceInput] = useState('');
   const [isCategorySelectorOpen, setIsCategorySelectorOpen] = useState(false);
+  const [selectedWorkingDays, setSelectedWorkingDays] = useState<ProviderWorkingHour['dayOfWeek'][]>(
+    []
+  );
 
   const { control, handleSubmit, reset } = useForm<EditProfileFormValues>({
     defaultValues: {
@@ -139,6 +152,9 @@ export default function EditProfileScreen() {
     setWorks(providerProfile.gallery);
     setSelectedCategory(providerProfile.categoryId);
     setServices(providerProfile.services);
+    setSelectedWorkingDays(
+      providerProfile.workingHours.filter((item) => item.isActive).map((item) => item.dayOfWeek)
+    );
   }, [profileQuery.data, reset]);
 
   const selectedCategoryLabel = useMemo(() => {
@@ -169,7 +185,12 @@ export default function EditProfileScreen() {
         avatarUri,
         gallery: works,
         initialGallery: providerProfile.gallery,
-        workingHours: providerProfile.workingHours,
+        workingHours: selectedWorkingDays.map((day) => ({
+          dayOfWeek: day,
+          startTime: formData.fromTime,
+          endTime: formData.toTime,
+          isActive: true,
+        })),
         shouldSubmit:
           providerStatus?.applicationStatus !== 'approved' &&
           providerStatus?.applicationStatus !== 'pending',
@@ -306,6 +327,12 @@ export default function EditProfileScreen() {
     setServiceInput('');
   };
 
+  const toggleWorkingDay = (day: ProviderWorkingHour['dayOfWeek']) => {
+    setSelectedWorkingDays((prev) =>
+      prev.includes(day) ? prev.filter((item) => item !== day) : [...prev, day]
+    );
+  };
+
   const onSubmit = (data: EditProfileFormValues) => {
     if (!selectedCategory) {
       Alert.alert('تنبيه', 'اختر تصنيفًا واحدًا على الأقل.');
@@ -319,6 +346,11 @@ export default function EditProfileScreen() {
 
     if (!timePattern.test(data.fromTime) || !timePattern.test(data.toTime)) {
       Alert.alert('تنبيه', 'أدخل الوقت بصيغة 24 ساعة مثل 09:00 أو 18:30.');
+      return;
+    }
+
+    if (selectedWorkingDays.length === 0) {
+      Alert.alert('تنبيه', 'اختر يوم عمل واحد على الأقل.');
       return;
     }
 
@@ -457,6 +489,32 @@ export default function EditProfileScreen() {
         <View className="mb-[14px] flex-row-reverse gap-3">
           <View className="flex-1">{renderInput('fromTime', '09:00')}</View>
           <View className="flex-1">{renderInput('toTime', '18:00')}</View>
+        </View>
+
+        <Text className="mb-2 text-right font-cairo-bold text-[14px] text-text">أيام العمل</Text>
+        <View className="mb-[14px] flex-row-reverse flex-wrap gap-2.5">
+          {workingDays.map((day) => {
+            const isSelected = selectedWorkingDays.includes(day.value);
+
+            return (
+              <TouchableOpacity
+                key={day.value}
+                className={`rounded-full border px-4 py-2.5 ${
+                  isSelected
+                    ? 'border-primary bg-primary'
+                    : 'border-border bg-surface-secondary'
+                }`}
+                onPress={() => toggleWorkingDay(day.value)}
+                activeOpacity={0.85}>
+                <Text
+                  className={`font-cairo-bold text-[13px] ${
+                    isSelected ? 'text-text' : 'text-text-secondary'
+                  }`}>
+                  {day.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <Text className="mb-2 text-right font-cairo-bold text-[14px] text-text">عن المزود</Text>

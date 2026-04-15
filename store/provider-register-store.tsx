@@ -2,6 +2,8 @@ import React, { createContext, useContext, useMemo, useState } from "react";
 
 type ProviderRegisterData = {
   imageUri: string | null;
+  portfolioImages: string[];
+  fullName: string;
   displayName: string;
   bio: string;
   services: string[];
@@ -18,6 +20,8 @@ type ProviderRegisterData = {
   passwordConfirmation: string;
 
   whatsappNumber: string;
+  instagramUsername: string;
+  facebookUrl: string;
   categoryId: string;
   token: string | null;
 };
@@ -36,6 +40,8 @@ export function ProviderRegisterProvider({
 }) {
   const [form, setForm] = useState<ProviderRegisterData>({
     imageUri: null,
+    portfolioImages: [],
+    fullName: "",
     displayName: "",
     bio: "",
     services: [],
@@ -52,6 +58,8 @@ export function ProviderRegisterProvider({
     passwordConfirmation: "",
 
     whatsappNumber: "",
+    instagramUsername: "",
+    facebookUrl: "",
     categoryId: "",
     token: null,
   });

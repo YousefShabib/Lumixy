@@ -12,14 +12,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   extractErrorMessage,
   fetchProviderProfile,
   fetchProviderStatus,
+  logoutProvider,
   providerProfileQueryKey,
   providerStatusQueryKey,
+  type ProviderWorkingHour,
 } from '@/services/provider-api';
 import {
   getProviderSession,
@@ -28,7 +30,18 @@ import {
 } from '@/services/provider-session';
 import { colors } from '@/theme';
 
+const arabicDayLabels: Record<ProviderWorkingHour['dayOfWeek'], string> = {
+  saturday: 'السبت',
+  sunday: 'الأحد',
+  monday: 'الاثنين',
+  tuesday: 'الثلاثاء',
+  wednesday: 'الأربعاء',
+  thursday: 'الخميس',
+  friday: 'الجمعة',
+};
+
 export default function ProviderProfileScreen() {
+  const queryClient = useQueryClient();
   const sessionQuery = useQuery({
     queryKey: providerSessionQueryKey,
     queryFn: loadProviderSession,
@@ -67,6 +80,12 @@ export default function ProviderProfileScreen() {
 
   const providerProfile = profileQuery.data;
   const displayedWorks = providerProfile?.works ?? [];
+  const activeWorkingDays =
+    providerProfile?.workingHours
+      ?.filter((item) => item.isActive)
+      .map((item) => arabicDayLabels[item.dayOfWeek]) ?? [];
+  const workingDaysText =
+    activeWorkingDays.length > 0 ? activeWorkingDays.join(' - ') : 'لم يتم تحديد الأيام بعد';
 
   const openExternalLink = async (url: string) => {
     try {
@@ -118,6 +137,14 @@ export default function ProviderProfileScreen() {
     }
 
     void openExternalLink(providerProfile.facebook);
+  };
+
+  const handleLogout = async () => {
+    await logoutProvider();
+    queryClient.removeQueries({ queryKey: providerSessionQueryKey });
+    queryClient.removeQueries({ queryKey: providerProfileQueryKey });
+    queryClient.removeQueries({ queryKey: providerStatusQueryKey });
+    router.replace('/entry');
   };
 
   if (sessionQuery.isLoading) {
@@ -228,9 +255,12 @@ export default function ProviderProfileScreen() {
 
           <View className="flex-row-reverse items-center gap-1.5 rounded-full border border-border bg-[#1A0E24] px-3 py-2">
             <Ionicons name="time-outline" size={14} color={colors.accent} />
-            <Text className="font-cairo text-[12px] text-text">
-              ساعات العمل: من {providerProfile.workTime} - {providerProfile.workTimeEnd}
-            </Text>
+            <View className="items-end">
+              <Text className="font-cairo text-[12px] text-text">
+                ساعات العمل: من {providerProfile.workTime} - {providerProfile.workTimeEnd}
+              </Text>
+              <Text className="font-cairo text-[11px] text-textSecondary">الأيام: {workingDaysText}</Text>
+            </View>
           </View>
 
           {providerProfile.categoryName ? (
@@ -301,6 +331,15 @@ export default function ProviderProfileScreen() {
             </Text>
           )}
         </View>
+        <TouchableOpacity
+          className="mb-[14px] flex-row-reverse items-center justify-center gap-2 rounded-[16px] border border-[#5B1F2A] bg-[#2A1218] px-4 py-4"
+          onPress={() => {
+            void handleLogout();
+          }}
+          activeOpacity={0.85}>
+          <Ionicons name="log-out-outline" size={18} color="#FCA5A5" />
+          <Text className="font-cairo-bold text-[14px] text-[#FCA5A5]">تسجيل الخروج</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <SafeAreaView className="absolute bottom-[10px] left-3 right-3 bg-transparent" edges={['bottom']}>

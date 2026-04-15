@@ -44,6 +44,7 @@ type ServiceCardProps = {
 type ProviderCardProps = {
   provider: ProviderItem;
   width: number;
+  onPress: () => void;
 };
 
 type AnimatedTapProps = {
@@ -103,7 +104,7 @@ function HeroCard({ rotatingMessage, onStartPress }: HeroCardProps) {
       </View>
 
       <View style={styles.heroContent}>
-        <Text style={styles.heroTitle}>أهلًا بك في لوميكسي</Text>
+        <Text style={styles.heroTitle}>أهلًا بك في Lumixy</Text>
         <Text style={styles.heroSubtitle}>
           تصفح الدليل العام للمزودين{'\n'}
           {rotatingMessage}
@@ -205,45 +206,53 @@ function ServiceCard({ service, width, onPress }: ServiceCardProps) {
   );
 }
 
-function ProviderCard({ provider, width }: ProviderCardProps) {
+function ProviderCard({ provider, width, onPress }: ProviderCardProps) {
   return (
-    <View style={[styles.providerCard, { width }]}>
-      <View style={styles.providerTopRow}>
-        <View style={styles.providerAvatarWrap}>
-          <LinearGradient
-            colors={['#5B786D', '#6F9485']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.providerAvatar}>
-            <Ionicons name="sparkles-outline" size={15} color="#D8E8DF" />
-          </LinearGradient>
+    <Pressable
+      onPress={onPress}
+      style={{ width }}>
+      <View style={styles.providerCard}>
+        <View style={styles.providerTopRow}>
+          <View style={styles.providerAvatarWrap}>
+            {provider.imageUrl ? (
+              <Image source={{ uri: provider.imageUrl }} contentFit="cover" style={styles.providerAvatarImage} />
+            ) : (
+              <LinearGradient
+                colors={['#5B786D', '#6F9485']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.providerAvatar}>
+                <Ionicons name="sparkles-outline" size={15} color="#D8E8DF" />
+              </LinearGradient>
+            )}
+          </View>
+
+          <View style={styles.providerTextBlock}>
+            <Text style={styles.providerName} numberOfLines={1}>
+              {provider.name}
+            </Text>
+            <View style={styles.providerCategoryRow}>
+              <Ionicons name="pricetag-outline" size={12} color={provider.accent} />
+              <Text style={[styles.providerCategory, { color: provider.accent }]} numberOfLines={1}>
+                {provider.category}
+              </Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.providerTextBlock}>
-          <Text style={styles.providerName} numberOfLines={1}>
-            {provider.name}
-          </Text>
-          <View style={styles.providerCategoryRow}>
-            <Ionicons name="pricetag-outline" size={12} color={provider.accent} />
-            <Text style={[styles.providerCategory, { color: provider.accent }]} numberOfLines={1}>
-              {provider.category}
-            </Text>
+        <View style={styles.providerMetaPill}>
+          <View style={styles.providerMetaSection}>
+            <Ionicons name="construct-outline" size={14} color="#2CD0A1" />
+            <Text style={styles.providerMetaText}>{provider.servicesLabel}</Text>
+          </View>
+          <View style={styles.providerMetaDivider} />
+          <View style={styles.providerMetaSection}>
+            <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+            <Text style={styles.providerLocationText}>{provider.location}</Text>
           </View>
         </View>
       </View>
-
-      <View style={styles.providerMetaPill}>
-        <View style={styles.providerMetaSection}>
-          <Ionicons name="construct-outline" size={14} color="#2CD0A1" />
-          <Text style={styles.providerMetaText}>{provider.servicesLabel}</Text>
-        </View>
-        <View style={styles.providerMetaDivider} />
-        <View style={styles.providerMetaSection}>
-          <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-          <Text style={styles.providerLocationText}>{provider.location}</Text>
-        </View>
-      </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -287,6 +296,14 @@ export function HomeScreen({ searchRoute = '/search' }: { searchRoute?: SearchRo
   const services = homeData?.services ?? [];
   const providers = homeData?.providers ?? [];
   const isFallbackData = homeData?.dataSource === 'fallback';
+
+  function openProviderProfile(providerId: string) {
+    router.push({
+      pathname: '/providers/[id]',
+      params: { id: providerId },
+    });
+  }
+
   function openSearch(categoryId?: string) {
     if (categoryId) {
       router.push({
@@ -419,7 +436,13 @@ export function HomeScreen({ searchRoute = '/search' }: { searchRoute?: SearchRo
                 inverted
                 data={providers}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => <ProviderCard provider={item} width={providerCardWidth} />}
+                renderItem={({ item }) => (
+                  <ProviderCard
+                    provider={item}
+                    width={providerCardWidth}
+                    onPress={() => openProviderProfile(item.id)}
+                  />
+                )}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.providersTrack}
                 style={styles.horizontalCarousel}
@@ -700,6 +723,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  providerAvatarImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#161019',
   },
   providerTextBlock: {
     flex: 1,

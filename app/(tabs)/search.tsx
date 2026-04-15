@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useDeferredValue, useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -281,11 +282,15 @@ export default function SearchScreen() {
         {filteredResults.map((item) => (
           <View key={item.id} style={styles.resultCard}>
             <View style={styles.resultAvatar}>
-              <Ionicons
-                name={item.isFeatured ? 'sparkles-outline' : 'person-circle'}
-                size={item.isFeatured ? 28 : 54}
-                color="#fff"
-              />
+              {item.imageUrl ? (
+                <Image source={{ uri: item.imageUrl }} contentFit="cover" style={styles.resultAvatarImage} />
+              ) : (
+                <Ionicons
+                  name={item.isFeatured ? 'sparkles-outline' : 'person-circle'}
+                  size={item.isFeatured ? 28 : 54}
+                  color="#fff"
+                />
+              )}
             </View>
 
             <View style={styles.resultContent}>
@@ -539,6 +544,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 12,
+    overflow: 'hidden',
+  },
+  resultAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   resultContent: {
     flex: 1,

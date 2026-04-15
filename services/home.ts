@@ -26,6 +26,7 @@ export type ProviderItem = {
   servicesLabel: string;
   location: string;
   accent: string;
+  imageUrl: string | null;
 };
 
 export type HomeData = {
@@ -141,6 +142,7 @@ function buildHomeData(directory: PublicDirectoryData): HomeData {
       servicesLabel: buildProviderServicesLabel(provider),
       location: provider.city,
       accent: providerAccents[index % providerAccents.length] ?? providerAccents[0],
+      imageUrl: provider.imageUrl,
     })),
     stats: directory.stats,
     dataSource: directory.dataSource,
