@@ -9,6 +9,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 export default function PortfolioScreen() {
   const router = useRouter();
@@ -50,9 +52,39 @@ export default function PortfolioScreen() {
     setIsSavingImages(true);
 
     try {
-      // TODO: اربط هذا الـ payload مع خدمة رفع/حفظ صور معرض الأعمال.
-      // await saveProviderPortfolio(portfolioPayload);
+      const userToken = Platform.OS === 'web' 
+        ? localStorage.getItem('userToken') 
+        : await SecureStore.getItemAsync('userToken');
+
+      // Connect to your local Laravel backend
+      for (let i = 0; i < images.length; i++) {
+        const localUri = images[i];
+        const filename = localUri.split('/').pop() || `image-${i}.jpg`;
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+        const formData = new FormData();
+        formData.append('image', { uri: localUri, name: filename, type } as any);
+        formData.append('sort_order', i.toString());
+
+        const response = await fetch('http://192.168.1.13:8000/api/provider/gallery', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${userToken}`,
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.message || 'حدث خطأ أثناء رفع الصور');
+        }
+      }
+
       router.push('/provider/contact-info');
+    } catch (e: any) {
+      alert("خطأ: " + e.message);
     } finally {
       setIsSavingImages(false);
     }

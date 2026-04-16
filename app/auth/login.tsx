@@ -13,9 +13,51 @@ import {
 
 import { colors, Logo, typography } from '@/theme';
 
+import * as SecureStore from 'expo-secure-store';
+
 export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!phone || !password) {
+      alert('الرجاء إدخال رقم الجوال وكلمة المرور');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://192.168.1.13:8000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ phone, password })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'خطأ في تسجيل الدخول');
+      }
+
+      // Save token securely
+      if (data.token) {
+        if (Platform.OS === 'web') {
+          localStorage.setItem('userToken', data.token);
+        } else {
+          await SecureStore.setItemAsync('userToken', data.token);
+        }
+        router.replace('/provider/tabs');
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -51,8 +93,12 @@ export default function LoginScreen() {
           textAlign="right"
         />
 
-        <Pressable style={styles.primaryButton} onPress={() => router.replace('/provider/tabs')}>
-          <Text style={styles.primaryButtonText}>دخول</Text>
+        <Pressable 
+          style={[styles.primaryButton, isLoading && { opacity: 0.7 }]} 
+          onPress={handleLogin}
+          disabled={isLoading}
+        >
+          <Text style={styles.primaryButtonText}>{isLoading ? 'جاري الدخول...' : 'دخول'}</Text>
         </Pressable>
 
         <Pressable style={styles.secondaryButton} onPress={() => router.back()}>

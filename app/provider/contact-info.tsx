@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
+import * as SecureStore from 'expo-secure-store';
 
 export default function ContactInfoScreen() {
   const router = useRouter();
@@ -104,9 +105,33 @@ export default function ContactInfoScreen() {
     setIsSubmitting(true);
 
     try {
-      // TODO: اربط هذا الـ payload مع خدمة حفظ معلومات التواصل.
-      // await saveProviderContactInfo(contactInfoPayload);
+      const userToken = Platform.OS === 'web' 
+        ? localStorage.getItem('userToken') 
+        : await SecureStore.getItemAsync('userToken');
+
+      // Connect to your local Laravel backend
+      const response = await fetch('http://192.168.1.13:8000/api/provider/profile/contact', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({
+          whatsapp: contactInfoPayload.whatsapp,
+          instagram: contactInfoPayload.instagram,
+          facebook: contactInfoPayload.facebook
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'حدث خطأ في حفظ البيانات');
+      }
+
       router.push('/provider/portfolio');
+    } catch (e: any) {
+      alert("خطأ: " + e.message);
     } finally {
       setIsSubmitting(false);
     }
