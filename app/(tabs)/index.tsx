@@ -142,7 +142,7 @@ function AdvertisementCard() {
           <Text style={styles.adBadgeText}>AD</Text>
         </View>
         <Text style={styles.adTitle}>مساحة إعلانية</Text>
-        <Text style={styles.adSubtitle}>يمكن وضع صورة إعلان هنا لاحقًا</Text>
+        <Text style={styles.adSubtitle}>لوضع اعلانك التجاري هنا، تواصل معنا</Text>
       </View>
     </View>
   );
@@ -832,19 +832,19 @@ const styles = StyleSheet.create({
   adBadgeText: {
     color: '#FFFFFF',
     fontFamily: typography.fontFamily.bold,
-    fontSize: 10,
+    fontSize: 11,
     letterSpacing: 1.1,
   },
   adTitle: {
     color: '#FFFFFF',
     fontFamily: typography.fontFamily.bold,
-    fontSize: 18,
+    fontSize: 20,
     textAlign: 'right',
   },
   adSubtitle: {
     color: 'rgba(255,255,255,0.74)',
     fontFamily: typography.fontFamily.regular,
-    fontSize: 11,
+    fontSize: 14,
     textAlign: 'right',
   },
   cardPressed: {

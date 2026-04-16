@@ -569,10 +569,12 @@ export default function AdminCategoriesScreen({ mode }: AdminCategoriesScreenPro
                           <Ionicons color={visual.color} name={visual.icon} size={26} />
                         </View>
 
-                        <Text className="min-h-[40px] text-center font-cairo-bold text-[15px] leading-5 text-admin-text">
-                          {category.name}
-                        </Text>
-                        <Text className="mt-1 text-center font-cairo text-[11px] text-admin-muted">
+                        <View className="min-h-[40px] justify-center">
+                          <Text className="text-center font-cairo-bold text-[15px] leading-6 text-admin-text">
+                            {category.name}
+                          </Text>
+                        </View>
+                        <Text className="mt-1.5 text-center font-cairo text-[11px] leading-5 text-admin-muted">
                           {category.is_active ? `${activeCount} مزود نشط` : 'قطاع غير مفعل'}
                         </Text>
                       </Pressable>

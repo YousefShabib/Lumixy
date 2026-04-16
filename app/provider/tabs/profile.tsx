@@ -161,7 +161,7 @@ export default function ProviderProfileScreen() {
     return null;
   }
 
-  if (profileQuery.isLoading || statusQuery.isLoading) {
+  if (profileQuery.isLoading) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color={colors.primaryLight} />

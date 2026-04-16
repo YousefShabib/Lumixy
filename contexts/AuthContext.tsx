@@ -1,5 +1,6 @@
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 
+import { clearProviderSession, syncProviderSession } from '@/services/provider-session';
 import { AuthUser } from '@/services/auth';
 import StorageService, { StoredAuthRole, StoredAuthSession } from '@/services/storage';
 
@@ -44,16 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!storedSession) {
+          clearProviderSession();
           await StorageService.removeSession();
           return;
         }
 
         const normalizedUser = normalizeStoredUser(storedSession.user);
         if (!normalizedUser) {
+          clearProviderSession();
           await StorageService.removeSession();
           return;
         }
 
+        syncProviderSession(storedSession);
         setSessionState({
           token: storedSession.token,
           role: storedSession.role,
@@ -61,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       } catch (error) {
         console.error('Failed to hydrate auth session:', error);
+        clearProviderSession();
         await StorageService.removeSession();
       } finally {
         if (isMounted) {
@@ -80,17 +85,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       clearSession: async () => {
         await StorageService.removeSession();
+        clearProviderSession();
         setSessionState(null);
       },
       isAuthenticated: Boolean(session?.token),
       isHydrating,
       role: session?.role ?? null,
       setSession: async (nextSession) => {
-        await StorageService.saveSession({
+        const storedSession = {
           token: nextSession.token,
           role: nextSession.role,
           user: nextSession.user,
-        });
+        } satisfies StoredAuthSession;
+
+        await StorageService.saveSession(storedSession);
+        syncProviderSession(storedSession);
         setSessionState(nextSession);
       },
       token: session?.token ?? null,

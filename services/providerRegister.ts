@@ -54,14 +54,18 @@ function getFileMetaFromUri(uri: string) {
   const extension = match?.[1]?.toLowerCase() || "jpg";
 
   const typeMap: Record<string, string> = {
+    heic: "image/heic",
+    heif: "image/heif",
     jpg: "image/jpeg",
     jpeg: "image/jpeg",
     png: "image/png",
     webp: "image/webp",
   };
 
+  const normalizedExtension = typeMap[extension] ? extension : "jpg";
+
   return {
-    name: `profile.${extension}`,
+    name: `profile.${normalizedExtension}`,
     type: typeMap[extension] || "image/jpeg",
   };
 }

@@ -170,11 +170,13 @@ function resolveApiBaseUrl() {
   return getApiBaseCandidates()[0] ?? 'http://127.0.0.1:8000/api';
 }
 
-export const apiBaseUrl = resolveApiBaseUrl();
+export function getProviderApiBaseUrl() {
+  return resolveApiBaseUrl();
+}
 
 function createApiClient(token?: string) {
   return axios.create({
-    baseURL: apiBaseUrl,
+    baseURL: getProviderApiBaseUrl(),
     timeout: 15000,
     headers: {
       Accept: 'application/json',

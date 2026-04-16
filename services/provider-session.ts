@@ -53,6 +53,11 @@ function normalizeStoredProviderSession(
   };
 }
 
+export function syncProviderSession(session: StoredAuthSession | null | undefined) {
+  currentSession = normalizeStoredProviderSession(session);
+  return currentSession;
+}
+
 export function getProviderSession() {
   return currentSession;
 }
@@ -63,10 +68,7 @@ export async function loadProviderSession() {
   }
 
   const storedSession = await StorageService.getSession();
-  const normalizedSession = normalizeStoredProviderSession(storedSession);
-  currentSession = normalizedSession;
-
-  return currentSession;
+  return syncProviderSession(storedSession);
 }
 
 export function setProviderSession(session: ProviderSession | null) {
