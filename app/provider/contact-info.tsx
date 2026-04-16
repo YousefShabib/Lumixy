@@ -138,8 +138,8 @@ export default function ContactInfoScreen() {
           {/* Progress */}
           <View className="px-5 mb-6">
             <View className="flex-row justify-end mb-1">
-              <Text className="text-[#7c3aed] text-xs font-medium" style={{ fontFamily: typography.fontFamily.medium }}>الحقول المكتملة</Text>
-              <Text className="text-[#7c3aed] text-xs font-medium mr-2" style={{ fontFamily: typography.fontFamily.medium }}>{completedFields}/3</Text>
+              <Text className="text-[#7c3aed] text-xs font-medium" style={{ fontFamily: typography.fontFamily.bold }}>الحقول المكتملة</Text>
+              <Text className="text-[#7c3aed] text-xs font-medium mr-2" style={{ fontFamily: typography.fontFamily.bold }}>{completedFields}/3</Text>
             </View>
             <View className="h-1.5 bg-[#2a1045] rounded-full">
               <View className="h-1.5 bg-[#7c3aed] rounded-full" style={{ width: progressWidth }} />

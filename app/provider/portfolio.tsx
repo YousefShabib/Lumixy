@@ -100,13 +100,13 @@ export default function PortfolioScreen() {
             <View className="w-16 h-16 rounded-2xl bg-[#7c3aed]/20 items-center justify-center mb-4">
               <Ionicons name="camera-outline" size={30} color="#a78bfa" />
             </View>
-            <Text className="text-white text-base font-semibold mb-1" style={{ fontFamily: typography.fontFamily.medium }}>إضافة صور جديدة</Text>
+            <Text className="text-white text-base font-semibold mb-1" style={{ fontFamily: typography.fontFamily.bold }}>إضافة صور جديدة</Text>
             <Text className="text-[#6b6480] text-xs" style={{ fontFamily: typography.fontFamily.regular }}>يمكنك رفع حتى 15 صورة (JPG, PNG)</Text>
             <TouchableOpacity
               onPress={pickImages}
               className="mt-4 bg-[#7c3aed] rounded-xl px-6 py-2.5"
             >
-              <Text className="text-white text-sm font-medium" style={{ fontFamily: typography.fontFamily.medium }}>اختر ملف</Text>
+              <Text className="text-white text-sm font-medium" style={{ fontFamily: typography.fontFamily.bold }}>اختر ملف</Text>
             </TouchableOpacity>
           </TouchableOpacity>
         )}
