@@ -7,6 +7,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '@/theme/colors';
+import { typography } from '@/theme/typography';
 
 export default function PortfolioScreen() {
   const router = useRouter();
@@ -62,8 +64,8 @@ export default function PortfolioScreen() {
     : images;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#111015]">
-      <StatusBar barStyle="light-content" backgroundColor="#111015" />
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
       {/* Header */}
       <View className="flex-row items-center justify-between px-5 pt-4 pb-3">
@@ -80,10 +82,10 @@ export default function PortfolioScreen() {
 
         {/* Title */}
         <View className="items-end mb-6">
-          <Text className="text-white text-2xl font-bold mb-2" style={{ textAlign: 'right' }}>
+          <Text className="text-white text-2xl font-bold mb-2" style={{ textAlign: 'right', fontFamily: typography.fontFamily.bold }}>
             معرض الأعمال
           </Text>
-          <Text className="text-[#a78bca] text-sm leading-6" style={{ textAlign: 'right' }}>
+          <Text className="text-[#a78bca] text-sm leading-6" style={{ textAlign: 'right', fontFamily: typography.fontFamily.regular }}>
             قم بتحميل صور لأعمالك السابقة لجذب المزيد من العملاء{'\n'}وبناء الثقة.
           </Text>
         </View>
@@ -98,13 +100,13 @@ export default function PortfolioScreen() {
             <View className="w-16 h-16 rounded-2xl bg-[#7c3aed]/20 items-center justify-center mb-4">
               <Ionicons name="camera-outline" size={30} color="#a78bfa" />
             </View>
-            <Text className="text-white text-base font-semibold mb-1">إضافة صور جديدة</Text>
-            <Text className="text-[#6b6480] text-xs">يمكنك رفع حتى 15 صورة (JPG, PNG)</Text>
+            <Text className="text-white text-base font-semibold mb-1" style={{ fontFamily: typography.fontFamily.medium }}>إضافة صور جديدة</Text>
+            <Text className="text-[#6b6480] text-xs" style={{ fontFamily: typography.fontFamily.regular }}>يمكنك رفع حتى 15 صورة (JPG, PNG)</Text>
             <TouchableOpacity
               onPress={pickImages}
               className="mt-4 bg-[#7c3aed] rounded-xl px-6 py-2.5"
             >
-              <Text className="text-white text-sm font-medium">اختر ملف</Text>
+              <Text className="text-white text-sm font-medium" style={{ fontFamily: typography.fontFamily.medium }}>اختر ملف</Text>
             </TouchableOpacity>
           </TouchableOpacity>
         )}
@@ -112,7 +114,7 @@ export default function PortfolioScreen() {
         {/* Grid */}
         {images.length > 0 && (
           <View className="mb-4">
-            <Text className="text-[#c4b5d4] text-sm mb-3" style={{ textAlign: 'right' }}>
+            <Text className="text-[#c4b5d4] text-sm mb-3" style={{ textAlign: 'right', fontFamily: typography.fontFamily.regular }}>
               الصور المرفوعة ({images.length})
             </Text>
             <View className="flex-row flex-wrap gap-2">
@@ -149,14 +151,14 @@ export default function PortfolioScreen() {
         {/* Terms note */}
         <View className="flex-row items-start gap-2 mt-4 bg-[#1a1026] rounded-2xl p-4">
           <Ionicons name="information-circle-outline" size={16} color="#7c3aed" style={{ marginTop: 2 }} />
-          <Text className="text-[#a78bca] text-xs flex-1 leading-5" style={{ textAlign: 'right' }}>
+          <Text className="text-[#a78bca] text-xs flex-1 leading-5" style={{ textAlign: 'right', fontFamily: typography.fontFamily.regular }}>
             بإكمال التسجيل، أنت توافق على شروط الخدمة لبرنامج شركاء لوميكسي LUMIXY في فلسطين
           </Text>
         </View>
       </ScrollView>
 
       {/* Footer */}
-      <View className="absolute bottom-0 left-0 right-0 px-5 pb-8 pt-4 bg-[#111015] border-t border-[#1e1c24]">
+      <View className="absolute bottom-0 left-0 right-0 px-5 pb-8 pt-4 border-t border-[#1e1c24]" style={{ backgroundColor: colors.background }}>
         <TouchableOpacity
           onPress={handleNextStep}
           disabled={isNextDisabled}
@@ -166,12 +168,12 @@ export default function PortfolioScreen() {
           activeOpacity={0.85}
         >
           <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-          <Text className="text-white font-bold text-base">
+          <Text className="text-white font-bold text-base" style={{ fontFamily: typography.fontFamily.bold }}>
             {isSavingImages ? 'جارٍ التجهيز...' : 'الخطوة التالية'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity className="items-center">
-          <Text className="text-[#6b6480] text-sm">حفظ كمسودة والعودة لاحقًا</Text>
+          <Text className="text-[#6b6480] text-sm" style={{ fontFamily: typography.fontFamily.regular }}>حفظ كمسودة والعودة لاحقًا</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

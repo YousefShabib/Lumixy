@@ -3,10 +3,11 @@ import {
   ScrollView, StatusBar, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { colors } from '@/theme/colors';
+import { typography } from '@/theme/typography';
 
 export default function ContactInfoScreen() {
   const router = useRouter();
@@ -114,8 +115,8 @@ export default function ContactInfoScreen() {
   const isSubmitDisabled = isSubmitting || !whatsapp.trim() || Object.values(errors).some(Boolean);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#111015]">
-      <StatusBar barStyle="light-content" backgroundColor="#111015" />
+    <SafeAreaView className="flex-1" style={{ backgroundColor: colors.background }}>
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -125,7 +126,7 @@ export default function ContactInfoScreen() {
           {/* Header */}
           <View className="flex-row items-center justify-between px-5 pt-4 pb-3">
             <View className="w-10" />
-            <Text className="text-white text-lg font-semibold">معلومات التواصل</Text>
+            <Text className="text-white text-lg font-semibold" style={{ fontFamily: typography.fontFamily.bold }}>معلومات التواصل</Text>
             <TouchableOpacity
               onPress={() => router.back()}
               className="w-10 h-10 rounded-full bg-[#1e1c24] items-center justify-center"
@@ -137,8 +138,8 @@ export default function ContactInfoScreen() {
           {/* Progress */}
           <View className="px-5 mb-6">
             <View className="flex-row justify-end mb-1">
-              <Text className="text-[#7c3aed] text-xs font-medium">الحقول المكتملة</Text>
-              <Text className="text-[#7c3aed] text-xs font-medium mr-2">{completedFields}/3</Text>
+              <Text className="text-[#7c3aed] text-xs font-medium" style={{ fontFamily: typography.fontFamily.medium }}>الحقول المكتملة</Text>
+              <Text className="text-[#7c3aed] text-xs font-medium mr-2" style={{ fontFamily: typography.fontFamily.medium }}>{completedFields}/3</Text>
             </View>
             <View className="h-1.5 bg-[#2a1045] rounded-full">
               <View className="h-1.5 bg-[#7c3aed] rounded-full" style={{ width: progressWidth }} />
@@ -147,10 +148,10 @@ export default function ContactInfoScreen() {
 
           {/* Title */}
           <View className="px-5 mb-8 items-end">
-            <Text className="text-white text-2xl font-bold mb-2" style={{ textAlign: 'right' }}>
+            <Text className="text-white text-2xl font-bold mb-2" style={{ textAlign: 'right', fontFamily: typography.fontFamily.bold }}>
               معلومات التواصل والتقديم
             </Text>
-            <Text className="text-[#a78bca] text-sm leading-6" style={{ textAlign: 'right' }}>
+            <Text className="text-[#a78bca] text-sm leading-6" style={{ textAlign: 'right', fontFamily: typography.fontFamily.regular }}>
               يرجى إدخال تفاصيل التواصل الخاصة بك{'\n'}للمتابعة مع العملاء.
             </Text>
           </View>
@@ -161,8 +162,8 @@ export default function ContactInfoScreen() {
             {/* WhatsApp */}
             <View>
               <View className="flex-row justify-end items-center mb-2 gap-1">
-                <Text className="text-xs text-red-400">مطلوب</Text>
-                <Text className="text-[#c4b5d4] text-sm" style={{ textAlign: 'right' }}>
+                <Text className="text-xs text-red-400" style={{ fontFamily: typography.fontFamily.regular }}>مطلوب</Text>
+                <Text className="text-[#c4b5d4] text-sm" style={{ textAlign: 'right', fontFamily: typography.fontFamily.regular }}>
                   رقم الواتساب
                 </Text>
               </View>
@@ -189,7 +190,7 @@ export default function ContactInfoScreen() {
 
             {/* Instagram */}
             <View>
-              <Text className="text-[#c4b5d4] text-sm mb-2" style={{ textAlign: 'right' }}>
+              <Text className="text-[#c4b5d4] text-sm mb-2" style={{ textAlign: 'right', fontFamily: typography.fontFamily.regular }}>
                 اسم المستخدم في إنستغرام
               </Text>
               <View className="bg-[#1e1c24] rounded-2xl flex-row items-center px-4 border border-[#2e2a38]">
@@ -215,7 +216,7 @@ export default function ContactInfoScreen() {
 
             {/* Facebook */}
             <View>
-              <Text className="text-[#c4b5d4] text-sm mb-2" style={{ textAlign: 'right' }}>
+              <Text className="text-[#c4b5d4] text-sm mb-2" style={{ textAlign: 'right', fontFamily: typography.fontFamily.regular }}>
                 رابط حساب فيسبوك
               </Text>
               <View className="bg-[#1e1c24] rounded-2xl flex-row items-center px-4 border border-[#2e2a38]">
@@ -243,7 +244,7 @@ export default function ContactInfoScreen() {
         </ScrollView>
 
         {/* Bottom */}
-        <View className="px-5 pb-6 pt-3 bg-[#111015]">
+        <View className="px-5 pb-6 pt-3" style={{ backgroundColor: colors.background }}>
           <TouchableOpacity
             onPress={handleCompleteRegistration}
             disabled={isSubmitDisabled}
@@ -253,11 +254,11 @@ export default function ContactInfoScreen() {
             activeOpacity={0.85}
           >
             <Ionicons name="play-outline" size={20} color="#fff" />
-            <Text className="text-white font-bold text-base">
+            <Text className="text-white font-bold text-base" style={{ fontFamily: typography.fontFamily.bold }}>
               {isSubmitting ? 'جارٍ التجهيز...' : 'إكمال التسجيل'}
             </Text>
           </TouchableOpacity>
-          <Text className="text-[#6b6480] text-xs text-center">
+          <Text className="text-[#6b6480] text-xs text-center" style={{ fontFamily: typography.fontFamily.regular }}>
             بالنقر على إكمال التسجيل، فأنت توافق على شروط الخدمة لـ LUMIXY
           </Text>
         </View>
