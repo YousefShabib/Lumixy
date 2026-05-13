@@ -13,22 +13,3 @@ export const colors = {
   success: '#10B981',    
   warning: '#F59E0B',    
 };
-
-export const Colors = {
-  light: {
-    text: '#1F1235',
-    background: '#F8F5FF',
-    tint: '#6D28D9',
-    icon: '#6E5B99',
-    tabIconDefault: '#8A7AAE',
-    tabIconSelected: '#6D28D9',
-  },
-  dark: {
-    text: colors.text,
-    background: colors.background,
-    tint: colors.primaryLight,
-    icon: '#B59ADF',
-    tabIconDefault: '#8A6EC4',
-    tabIconSelected: colors.accent,
-  },
-};

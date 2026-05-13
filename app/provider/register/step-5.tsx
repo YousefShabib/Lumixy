@@ -16,8 +16,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ApiError } from "@/services/api";
 import {
-  ApiError,
   submitProviderApplication,
   updateProviderBusiness,
   updateProviderContact,
@@ -145,9 +145,9 @@ export default function StepFiveScreen() {
     setIsSubmitting(true);
 
     try {
-      await uploadProviderImage(form.token, form.imageUri!);
+      await uploadProviderImage(form.imageUri!);
 
-      await updateProviderBusiness(form.token, {
+      await updateProviderBusiness({
         provider_name: form.displayName.trim(),
         bio: form.bio.trim(),
         category_id: form.categoryId,
@@ -155,14 +155,14 @@ export default function StepFiveScreen() {
         onboarding_step: 2,
       });
 
-      await updateProviderLocationSchedule(form.token, {
+      await updateProviderLocationSchedule({
         city: form.city.trim(),
         location_text: buildLocationText(),
         onboarding_step: 3,
         hours: buildHoursPayload(),
       });
 
-      await updateProviderContact(form.token, {
+      await updateProviderContact({
         whatsapp_number: form.whatsappNumber.trim(),
         instagram_username: form.instagramUsername.trim() || undefined,
         facebook_url: form.facebookUrl.trim() || undefined,
@@ -170,11 +170,11 @@ export default function StepFiveScreen() {
       });
 
       if (form.portfolioImages.length > 0) {
-        await uploadProviderGallery(form.token, form.portfolioImages);
+        await uploadProviderGallery(form.portfolioImages);
       }
 
       try {
-        await submitProviderApplication(form.token);
+        await submitProviderApplication();
       } catch (error) {
         if (!(error instanceof ApiError) || !error.message.toLowerCase().includes("pending application")) {
           throw error;

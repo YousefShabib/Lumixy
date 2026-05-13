@@ -569,7 +569,7 @@ function toDirectoryProvider(provider: PublicProviderDetails): PublicProvider {
   });
 }
 
-export function getFallbackPublicDirectory(warningMessage: string | null = null): PublicDirectoryData {
+function getFallbackPublicDirectory(warningMessage: string | null = null): PublicDirectoryData {
   const providers = fallbackProviderDetails.map(toDirectoryProvider);
   const featuredProviders = providers.filter((provider) => provider.isFeatured).map(cloneProvider);
 
@@ -595,7 +595,7 @@ async function fetchProvidersPage(page: number, signal?: AbortSignal) {
   });
 }
 
-export async function fetchPublicCategories(signal?: AbortSignal) {
+async function fetchPublicCategories(signal?: AbortSignal) {
   const categories = await apiRequest<ApiCategory[]>('service-categories', {
     method: 'GET',
     signal,
@@ -604,7 +604,7 @@ export async function fetchPublicCategories(signal?: AbortSignal) {
   return (categories ?? []).map((category, index) => normalizeCategory(category, 0, index));
 }
 
-export async function fetchAllPublicProviders(signal?: AbortSignal) {
+async function fetchAllPublicProviders(signal?: AbortSignal) {
   const firstPage = await fetchProvidersPage(1, signal);
   const totalPages = Math.max(firstPage.last_page || 1, 1);
 
@@ -621,7 +621,7 @@ export async function fetchAllPublicProviders(signal?: AbortSignal) {
   return dedupeProviders(allItems.map((provider, index) => normalizeProvider(provider, index)));
 }
 
-export async function fetchPublicDirectory(signal?: AbortSignal): Promise<PublicDirectoryData> {
+async function fetchPublicDirectory(signal?: AbortSignal): Promise<PublicDirectoryData> {
   const [categories, providers] = await Promise.all([
     fetchPublicCategories(signal),
     fetchAllPublicProviders(signal),

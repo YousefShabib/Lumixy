@@ -79,11 +79,6 @@ type LoginResponse = {
   user: ProviderSessionUser;
 };
 
-export type ProviderCategoryOption = {
-  id: string;
-  label: string;
-};
-
 export type ProviderGalleryImage = {
   id?: string;
   uri: string;
@@ -97,14 +92,14 @@ export type ProviderWorkingHour = {
   isActive: boolean;
 };
 
-export type ProviderApplicationStatus = {
+type ProviderApplicationStatus = {
   applicationStatus: ProviderStatusValue;
   notes: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;
 };
 
-export type ProviderProfileData = {
+type ProviderProfileData = {
   id: string;
   name: string;
   categoryId: string | null;
@@ -130,7 +125,7 @@ export type ProviderProfileData = {
   applicationStatus: ProviderStatusValue;
 };
 
-export type SaveProviderProfileInput = {
+type SaveProviderProfileInput = {
   providerName: string;
   categoryId: string;
   city: string;
@@ -170,7 +165,7 @@ function resolveApiBaseUrl() {
   return getApiBaseCandidates()[0] ?? 'http://127.0.0.1:8000/api';
 }
 
-export function getProviderApiBaseUrl() {
+function getProviderApiBaseUrl() {
   return resolveApiBaseUrl();
 }
 

@@ -7,7 +7,7 @@ const STORAGE_KEYS = {
 
 export type StoredAuthRole = 'admin' | 'provider';
 
-export type StoredAuthUser = Record<string, unknown> & {
+type StoredAuthUser = Record<string, unknown> & {
   role?: StoredAuthRole;
 };
 
@@ -149,7 +149,9 @@ const StorageService = {
     }
   },
 
-  async clearAsyncStorage() {
+  /** Clears auth token and user payload from Secure Store (not AsyncStorage UI keys). */
+  async clearSecureAuthStorage() {
+    setTokenCache(null);
     setUserCache(null);
 
     try {
@@ -167,10 +169,6 @@ const StorageService = {
 
 export async function getStoredToken() {
   return StorageService.getToken();
-}
-
-export async function clearToken() {
-  await StorageService.removeToken();
 }
 
 export default StorageService;

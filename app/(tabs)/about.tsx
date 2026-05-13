@@ -2,10 +2,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { StatusMessage } from '@/components/ui/status-message';
+import {
+  deleteOfflineNote,
+  insertOfflineNote,
+  listOfflineNotes,
+  type OfflineNoteRow,
+} from '@/services/offline-notes-db';
 import { typography } from '@/theme';
 
 const contactItems = [
@@ -57,6 +74,83 @@ function ContactCard({
 }
 
 export default function AboutScreen() {
+  const [notes, setNotes] = useState<OfflineNoteRow[]>([]);
+  const [draft, setDraft] = useState('');
+  const [notesLoading, setNotesLoading] = useState(true);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
+
+  const loadNotes = useCallback(async () => {
+    setNotesLoading(true);
+    setDbError(null);
+
+    try {
+      const rows = await listOfflineNotes();
+      setNotes(rows);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'تعذر فتح التخزين المحلي.';
+      setDbError(message);
+      setNotes([]);
+    } finally {
+      setNotesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadNotes();
+  }, [loadNotes]);
+
+  const offlineInfoMessage = useMemo(
+    () =>
+      'ملاحظاتك تُحفظ محلياً وتعمل بدون إنترنت. على الهاتف يُستخدم SQLite؛ على الويب يُستخدم تخزين المتصفح.',
+    []
+  );
+
+  const formatDate = useCallback((createdAt: number) => {
+    try {
+      return new Intl.DateTimeFormat('ar', {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(new Date(createdAt));
+    } catch {
+      return new Date(createdAt).toLocaleString();
+    }
+  }, []);
+
+  const handleAddNote = useCallback(async () => {
+    const trimmed = draft.trim();
+    if (!trimmed || dbError) {
+      return;
+    }
+
+    setNotesSaving(true);
+    try {
+      await insertOfflineNote(trimmed);
+      setDraft('');
+      await loadNotes();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'تعذر حفظ الملاحظة.';
+      Alert.alert('تنبيه', message);
+    } finally {
+      setNotesSaving(false);
+    }
+  }, [dbError, draft, loadNotes]);
+
+  const handleDeleteNote = useCallback(
+    async (id: number) => {
+      if (dbError) {
+        return;
+      }
+      try {
+        await deleteOfflineNote(id);
+        await loadNotes();
+      } catch {
+        Alert.alert('تنبيه', 'تعذر حذف الملاحظة.');
+      }
+    },
+    [dbError, loadNotes]
+  );
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="light" />
@@ -112,6 +206,77 @@ export default function AboutScreen() {
             {contactItems.map((item) => (
               <ContactCard key={item.id} {...item} />
             ))}
+          </View>
+
+          <View style={styles.offlineSection}>
+            <View style={styles.offlineTitleRow}>
+              <TouchableOpacity
+                onPress={() => void loadNotes()}
+                style={styles.refreshBtn}
+                accessibilityLabel="تحديث الملاحظات">
+                <Ionicons name="refresh" size={18} color="#9D4DFF" />
+              </TouchableOpacity>
+              <View style={styles.offlineTitleTextWrap}>
+                <Ionicons name="cloud-offline-outline" size={16} color="#9D4DFF" />
+                <Text style={styles.offlineSectionTitle}>ملاحظات محلية</Text>
+              </View>
+            </View>
+            <Text style={styles.offlineSubtitle}>
+              لا تحتاج إنترنت للعرض أو التعديل — SQLite على التطبيق، تخزين محلي على الويب.
+            </Text>
+
+            {dbError ? (
+              <StatusMessage variant="warning" title="تنبيه" message={dbError} style={styles.offlineBanner} />
+            ) : (
+              <StatusMessage variant="info" title="أوفلاين" message={offlineInfoMessage} style={styles.offlineBanner} />
+            )}
+
+            <View style={styles.offlineComposer}>
+              <Text style={styles.offlineComposerLabel}>ملاحظة جديدة</Text>
+              <TextInput
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="اكتب هنا..."
+                placeholderTextColor="#61577A"
+                multiline
+                editable={!dbError}
+                style={styles.offlineInput}
+              />
+              <TouchableOpacity
+                onPress={() => void handleAddNote()}
+                disabled={notesSaving || !draft.trim() || Boolean(dbError)}
+                style={[
+                  styles.offlineSaveBtn,
+                  (notesSaving || !draft.trim() || dbError) && styles.offlineSaveBtnDisabled,
+                ]}>
+                <Text style={styles.offlineSaveBtnText}>
+                  {notesSaving ? 'جارٍ الحفظ...' : 'حفظ محلياً'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {notesLoading ? (
+              <View style={styles.notesLoadingWrap}>
+                <ActivityIndicator color="#9D4DFF" />
+              </View>
+            ) : notes.length === 0 ? (
+              <Text style={styles.notesEmpty}>لا توجد ملاحظات بعد. أضف واحدة لتجربة التخزين المحلي.</Text>
+            ) : (
+              notes.map((item) => (
+                <View key={item.id} style={styles.noteRow}>
+                  <TouchableOpacity
+                    onPress={() => void handleDeleteNote(item.id)}
+                    style={styles.noteDeleteBtn}
+                    accessibilityLabel="حذف الملاحظة">
+                    <Ionicons name="trash-outline" size={18} color="#FDA4AF" />
+                  </TouchableOpacity>
+                  <View style={styles.noteBody}>
+                    <Text style={styles.noteContent}>{item.content}</Text>
+                    <Text style={styles.noteDate}>{formatDate(item.createdAt)}</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         </ScrollView>
       </View>
@@ -248,6 +413,7 @@ const styles = StyleSheet.create({
   },
   contactsList: {
     gap: 12,
+    marginBottom: 28,
   },
   contactCard: {
     width: '100%',
@@ -297,5 +463,139 @@ const styles = StyleSheet.create({
   cardPressed: {
     opacity: 0.92,
     transform: [{ scale: 0.99 }],
+  },
+  offlineSection: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  offlineTitleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  offlineTitleTextWrap: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  offlineSectionTitle: {
+    color: '#FFFFFF',
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 17,
+    textAlign: 'right',
+  },
+  offlineSubtitle: {
+    color: '#8A819B',
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'right',
+    marginBottom: 12,
+  },
+  refreshBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(157, 77, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(157, 77, 255, 0.2)',
+  },
+  offlineBanner: {
+    marginBottom: 12,
+  },
+  offlineComposer: {
+    borderRadius: 18,
+    backgroundColor: '#17131B',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    padding: 14,
+    marginBottom: 16,
+  },
+  offlineComposerLabel: {
+    color: '#9B94AB',
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 13,
+    textAlign: 'right',
+    marginBottom: 8,
+  },
+  offlineInput: {
+    minHeight: 80,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#0D0912',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#E8E5F1',
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 15,
+    textAlign: 'right',
+    textAlignVertical: 'top',
+  },
+  offlineSaveBtn: {
+    marginTop: 12,
+    borderRadius: 14,
+    backgroundColor: '#6D28D9',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  offlineSaveBtnDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  offlineSaveBtnText: {
+    color: '#FFFFFF',
+    fontFamily: typography.fontFamily.bold,
+    fontSize: 15,
+  },
+  notesLoadingWrap: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  notesEmpty: {
+    color: '#61577A',
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  noteRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    gap: 12,
+    borderRadius: 18,
+    backgroundColor: '#17131B',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+    padding: 14,
+    marginBottom: 10,
+  },
+  noteDeleteBtn: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(244, 63, 94, 0.12)',
+  },
+  noteBody: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  noteContent: {
+    color: '#E8E5F1',
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'right',
+  },
+  noteDate: {
+    color: '#61577A',
+    fontFamily: typography.fontFamily.regular,
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: 'right',
   },
 });

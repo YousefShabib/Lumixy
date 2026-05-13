@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Image } from 'expo-image';
 
 import { useAdminSession } from '@/contexts/admin-session-context';
 import { useAdminProvidersQuery } from '@/hooks/admin/use-admin-providers';
@@ -120,7 +119,7 @@ export default function ProviderDetailsScreen() {
   }, [adminProvidersQuery.data, isAdminAuthenticated, providerId]);
 
   const provider = providerQuery.data ?? adminFallbackProvider;
-  const displayedWorks = provider?.galleryImages ?? [];
+  const displayedWorks = useMemo(() => provider?.galleryImages ?? [], [provider?.galleryImages]);
   const avatarCandidates = useMemo(() => {
     const uniqueCandidates = new Set<string>();
 

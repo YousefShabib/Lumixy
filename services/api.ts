@@ -6,11 +6,6 @@ import StorageService from '@/services/storage';
 
 const REQUEST_TIMEOUT_MS = 15000;
 
-export const API_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL?.trim() ||
-  process.env.EXPO_PUBLIC_API_URL?.trim() ||
-  'http://127.0.0.1:8000/api';
-
 let preferredApiBaseUrl: string | null = null;
 
 type ErrorPayload = {

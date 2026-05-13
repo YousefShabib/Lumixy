@@ -1,8 +1,6 @@
 import type { AdminUser } from '@/services/admin-auth-api';
 import { apiRequest, type ApiRequestConfig } from '@/services/api';
 
-export type { AdminUser } from '@/services/admin-auth-api';
-
 export type AdminAccountRecord = AdminUser & {
   created_at?: string;
   updated_at?: string;
@@ -27,7 +25,7 @@ export type AdminProviderGalleryItem = {
   url?: string | null;
 };
 
-export type AdminProviderWorkingHour = {
+type AdminProviderWorkingHour = {
   day_of_week?: string | null;
   end_time?: string | null;
   id?: string;
@@ -66,7 +64,7 @@ export type AdminProviderRecord = {
   working_hours?: AdminProviderWorkingHour[] | null;
 };
 
-export type PaginatedResponse<T> = {
+type PaginatedResponse<T> = {
   current_page: number;
   data: T[];
   last_page: number;

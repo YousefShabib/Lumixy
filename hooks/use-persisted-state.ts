@@ -1,6 +1,7 @@
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 
+/** Persists non-sensitive UI state (filters, draft queries). Tokens stay in Secure Store via `storage.ts`. */
 export function usePersistedState<T>(storageKey: string, initialValue: T) {
   const [value, setValue] = useState<T>(initialValue);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -10,7 +11,7 @@ export function usePersistedState<T>(storageKey: string, initialValue: T) {
 
     const hydrate = async () => {
       try {
-        const storedValue = await SecureStore.getItemAsync(storageKey);
+        const storedValue = await AsyncStorage.getItem(storageKey);
 
         if (storedValue == null || !isMounted) {
           return;
@@ -40,7 +41,7 @@ export function usePersistedState<T>(storageKey: string, initialValue: T) {
 
     const persist = async () => {
       try {
-        await SecureStore.setItemAsync(storageKey, JSON.stringify(value));
+        await AsyncStorage.setItem(storageKey, JSON.stringify(value));
       } catch {
         // Ignore persistence errors for non-critical UI state.
       }

@@ -44,6 +44,7 @@ export default function AuthField({
         ) : null}
         {secureTextEntry ? (
           <TouchableOpacity
+            accessibilityLabel="إظهار أو إخفاء كلمة المرور"
             className="absolute left-[14px] top-[17px] z-[2]"
             onPress={() => setIsHidden((prev) => !prev)}
             activeOpacity={0.8}>

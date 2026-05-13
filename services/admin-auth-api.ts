@@ -9,7 +9,7 @@ export type AdminUser = {
   status: 'active' | 'inactive';
 };
 
-export type AdminLoginResponse = {
+type AdminLoginResponse = {
   message: string;
   token: string;
   user: AdminUser;

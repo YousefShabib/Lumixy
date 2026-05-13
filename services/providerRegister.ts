@@ -1,97 +1,42 @@
-import { getApiBaseCandidates } from "@/services/api";
+import { apiRequest } from '@/services/api';
 
 export type ServiceCategory = {
   id: string;
   name: string;
 };
 
-function getProviderApiBaseUrl() {
-  return getApiBaseCandidates()[0] ?? "http://127.0.0.1:8000/api";
-}
-
-export class ApiError extends Error {
-  status: number;
-  errors?: Record<string, string[]>;
-
-  constructor(
-    message: string,
-    status: number,
-    errors?: Record<string, string[]>
-  ) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.errors = errors;
-  }
-}
-
-async function parseApiResponse(response: Response) {
-  const contentType = response.headers.get("content-type") || "";
-  const data = contentType.includes("application/json")
-    ? await response.json()
-    : null;
-
-  if (!response.ok) {
-    const validationMessage = data?.errors
-      ? Object.values(data.errors)
-          .flat()
-          .filter(Boolean)
-          .join("\n")
-      : null;
-
-    throw new ApiError(
-      validationMessage || data?.message || "Request failed",
-      response.status,
-      data?.errors
-    );
+function normalizeCategoryList(data: unknown): ServiceCategory[] {
+  if (Array.isArray(data)) {
+    return data as ServiceCategory[];
   }
 
-  return data;
-}
-
-function getFileMetaFromUri(uri: string) {
-  const match = uri.match(/\.([a-zA-Z0-9]+)(?:\?.*)?$/);
-  const extension = match?.[1]?.toLowerCase() || "jpg";
-
-  const typeMap: Record<string, string> = {
-    heic: "image/heic",
-    heif: "image/heif",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-  };
-
-  const normalizedExtension = typeMap[extension] ? extension : "jpg";
-
-  return {
-    name: `profile.${normalizedExtension}`,
-    type: typeMap[extension] || "image/jpeg",
-  };
-}
-
-export async function fetchServiceCategories(): Promise<ServiceCategory[]> {
-  const response = await fetch(`${getProviderApiBaseUrl()}/service-categories`, {
-    headers: {
-      Accept: "application/json",
-    },
-  });
-
-  const data = await parseApiResponse(response);
-
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data.data)) return data.data;
+  if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as { data: unknown }).data)) {
+    return (data as { data: ServiceCategory[] }).data;
+  }
 
   return [];
 }
 
-type RegisterPayload = {
-  full_name: string;
-  email: string;
-  phone?: string;
-  password: string;
-  password_confirmation: string;
-};
+function getFileMetaFromUri(uri: string) {
+  const match = uri.match(/\.([a-zA-Z0-9]+)(?:\?.*)?$/);
+  const extension = match?.[1]?.toLowerCase() || 'jpg';
+
+  const typeMap: Record<string, string> = {
+    heic: 'image/heic',
+    heif: 'image/heif',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+  };
+
+  const normalizedExtension = typeMap[extension] ? extension : 'jpg';
+
+  return {
+    name: `profile.${normalizedExtension}`,
+    type: typeMap[extension] || 'image/jpeg',
+  };
+}
 
 type BusinessPayload = {
   provider_name: string;
@@ -122,132 +67,80 @@ type ContactPayload = {
   onboarding_step?: number;
 };
 
-export async function registerProvider(payload: RegisterPayload) {
-  const response = await fetch(`${getProviderApiBaseUrl()}/provider/auth/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  return parseApiResponse(response);
+export async function fetchServiceCategories(): Promise<ServiceCategory[]> {
+  const data = await apiRequest<unknown>('service-categories', { method: 'GET' });
+  return normalizeCategoryList(data);
 }
 
-export async function uploadProviderImage(token: string, imageUri: string) {
+export async function uploadProviderImage(imageUri: string) {
   const formData = new FormData();
   const fileMeta = getFileMetaFromUri(imageUri);
 
-  formData.append("profile_image", {
-    uri: imageUri,
-    name: fileMeta.name,
-    type: fileMeta.type,
-  } as any);
+  formData.append(
+    'profile_image',
+    {
+      uri: imageUri,
+      name: fileMeta.name,
+      type: fileMeta.type,
+    } as unknown as Blob
+  );
 
-  formData.append("onboarding_step", "1");
+  formData.append('onboarding_step', '1');
 
-  const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/image`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+  await apiRequest('provider/profile/image', {
+    method: 'POST',
     body: formData,
+    requiresAuth: true,
   });
-
-  return parseApiResponse(response);
 }
 
-export async function uploadProviderGallery(token: string, imageUris: string[]) {
+export async function uploadProviderGallery(imageUris: string[]) {
   for (const [index, imageUri] of imageUris.entries()) {
     const fileMeta = getFileMetaFromUri(imageUri);
     const formData = new FormData();
 
-    formData.append("sort_order", String(index));
-    formData.append("image", {
-      uri: imageUri,
-      name: `gallery-${index + 1}.${fileMeta.name.split(".").pop() || "jpg"}`,
-      type: fileMeta.type,
-    } as any);
+    formData.append('sort_order', String(index));
+    formData.append(
+      'image',
+      {
+        uri: imageUri,
+        name: `gallery-${index + 1}.${fileMeta.name.split('.').pop() || 'jpg'}`,
+        type: fileMeta.type,
+      } as unknown as Blob
+    );
 
-    const response = await fetch(`${getProviderApiBaseUrl()}/provider/gallery`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+    await apiRequest('provider/gallery', {
+      method: 'POST',
       body: formData,
+      requiresAuth: true,
     });
-
-    await parseApiResponse(response);
   }
 }
 
-export async function updateProviderBusiness(token: string, payload: BusinessPayload) {
-  const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/business`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
+export async function updateProviderBusiness(payload: BusinessPayload) {
+  await apiRequest('provider/profile/business', {
+    method: 'PUT',
+    body: payload,
+    requiresAuth: true,
   });
-
-  return parseApiResponse(response);
 }
 
-export async function updateProviderLocationSchedule(
-  token: string,
-  payload: LocationSchedulePayload
-) {
-  const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/location-schedule`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
+export async function updateProviderLocationSchedule(payload: LocationSchedulePayload) {
+  await apiRequest('provider/profile/location-schedule', {
+    method: 'PUT',
+    body: payload,
+    requiresAuth: true,
   });
-
-  return parseApiResponse(response);
 }
 
-export async function updateProviderContact(token: string, payload: ContactPayload) {
-  const response = await fetch(`${getProviderApiBaseUrl()}/provider/profile/contact`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
+export async function updateProviderContact(payload: ContactPayload) {
+  await apiRequest('provider/profile/contact', {
+    method: 'PUT',
+    body: payload,
+    requiresAuth: true,
   });
-
-  return parseApiResponse(response);
 }
 
-export async function submitProviderApplication(token: string) {
-  const response = await fetch(`${getProviderApiBaseUrl()}/provider/submit`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  return parseApiResponse(response);
-}
-export async function getProviderApplicationStatus(token: string) {
-  const response = await fetch(`${getProviderApiBaseUrl()}/provider/application-status`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  return parseApiResponse(response);
+export async function submitProviderApplication() {
+  await apiRequest('provider/submit', { method: 'POST', requiresAuth: true });
 }

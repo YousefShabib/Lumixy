@@ -19,12 +19,12 @@ export type AuthResponse = {
   user: AuthUser;
 };
 
-export type LoginPayload = {
+type LoginPayload = {
   email: string;
   password: string;
 };
 
-export type RegisterPayload = {
+type RegisterPayload = {
   full_name: string;
   email: string;
   phone: string;

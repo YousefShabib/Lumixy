@@ -2,13 +2,13 @@ import type { Href } from 'expo-router';
 
 import type { AuthRole, AuthUser } from '@/services/auth';
 
-export function getRouteForRole(role: AuthRole): Href {
+function getRouteForRole(role: AuthRole): Href {
   return role === 'admin'
     ? ({ pathname: '/admin/tabs' } as const)
     : ({ pathname: '/provider/tabs' } as const);
 }
 
-export function isProviderPendingApproval(user: AuthUser | null | undefined) {
+function isProviderPendingApproval(user: AuthUser | null | undefined) {
   if (!user || user.role !== 'provider') {
     return false;
   }
