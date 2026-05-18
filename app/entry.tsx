@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors, typography } from '@/theme';
+import { colors, Logo, typography } from '@/theme';
 
 export default function EntryScreen() {
   const router = useRouter();
@@ -12,18 +12,7 @@ export default function EntryScreen() {
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
       <View className="items-center mt-16 mb-12">
-        <View
-          className="w-20 h-20 rounded-2xl items-center justify-center mb-5 shadow-lg"
-          style={{ backgroundColor: colors.primaryLight }}
-        >
-          <Ionicons name="sparkles" size={38} color={colors.text} />
-        </View>
-        <Text
-          className="text-4xl tracking-wide"
-          style={{ color: colors.text, fontFamily: typography.fontFamily.bold }}
-        >
-          LUMIXY
-        </Text>
+        <Logo size="medium" style={{ marginBottom: 18 }} />
         <Text
           className="text-sm mt-2 text-center px-8"
           style={{

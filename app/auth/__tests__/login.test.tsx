@@ -1,7 +1,13 @@
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type { MockedFunction } from 'jest-mock';
 import React from 'react';
 import * as RN from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import useAuth from '@/hooks/useAuth';
+import { useRouter } from 'expo-router';
+import LoginScreen from '../login';
 
 jest.mock('expo-router', () => ({
   __esModule: true,
@@ -14,12 +20,28 @@ jest.mock('@/hooks/useAuth', () => ({
   default: jest.fn(),
 }));
 
-import LoginScreen from '../login';
-import useAuth from '@/hooks/useAuth';
-import { useRouter } from 'expo-router';
+type AuthHookValue = ReturnType<typeof useAuth>;
 
-const mockedUseRouter = jest.mocked(useRouter);
+const mockedUseRouter = useRouter as unknown as MockedFunction<typeof useRouter>;
 const mockedUseAuth = jest.mocked(useAuth);
+
+const LOGIN_TEXT = 'تسجيل الدخول';
+const EMAIL_PLACEHOLDER = 'provider@lumixy.ps';
+const PASSWORD_PLACEHOLDER = '••••••••';
+const ERROR_TEXT = 'بيانات تسجيل الدخول غير صحيحة.';
+
+const replace = jest.fn();
+const login = jest.fn<AuthHookValue['login']>();
+
+function mockAuth(overrides: Partial<AuthHookValue> = {}) {
+  mockedUseAuth.mockReturnValue({
+    error: '',
+    clearError: jest.fn(),
+    isLoading: () => false,
+    login,
+    ...overrides,
+  } as AuthHookValue);
+}
 
 function renderLogin() {
   return render(
@@ -33,15 +55,23 @@ function renderLogin() {
   );
 }
 
+async function submitLoginForm() {
+  await act(async () => {
+    fireEvent.changeText(screen.getByPlaceholderText(EMAIL_PLACEHOLDER), 'user@example.com');
+    fireEvent.changeText(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER), 'password123');
+  });
+
+  const submitButton = screen.getAllByText(LOGIN_TEXT).at(-1);
+
+  await act(async () => {
+    fireEvent.press(submitButton!);
+  });
+}
+
 describe('LoginScreen', () => {
-  let replace: jest.Mock;
-  let login: jest.Mock;
-
   beforeEach(() => {
-    replace = jest.fn();
     mockedUseRouter.mockReturnValue({ replace } as unknown as ReturnType<typeof useRouter>);
-
-    login = jest.fn().mockResolvedValue({
+    login.mockResolvedValue({
       token: 'test-token',
       user: {
         id: '1',
@@ -50,13 +80,7 @@ describe('LoginScreen', () => {
         role: 'provider' as const,
       },
     });
-
-    mockedUseAuth.mockReturnValue({
-      error: '',
-      clearError: jest.fn(),
-      isLoading: () => false,
-      login,
-    } as unknown as ReturnType<typeof useAuth>);
+    mockAuth();
 
     jest.spyOn(RN, 'useWindowDimensions').mockReturnValue({
       width: 400,
@@ -68,30 +92,20 @@ describe('LoginScreen', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
-  it('يعرض عنوان شاشة تسجيل الدخول', () => {
+  it('renders the login screen title and fields', () => {
     renderLogin();
 
-    expect(screen.getByText('تسجيل الدخول')).toBeTruthy();
-    expect(screen.getByPlaceholderText('provider@lumixy.ps')).toBeTruthy();
-    expect(screen.getByPlaceholderText('••••••••')).toBeTruthy();
+    expect(screen.getByText(LOGIN_TEXT)).toBeTruthy();
+    expect(screen.getByPlaceholderText(EMAIL_PLACEHOLDER)).toBeTruthy();
+    expect(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER)).toBeTruthy();
   });
 
-  it('يستدعي login ثم يوجّه المستخدم بعد إدخال بيانات صالحة', async () => {
+  it('calls login and redirects after valid credentials are submitted', async () => {
     renderLogin();
-
-    await act(async () => {
-      fireEvent.changeText(screen.getByPlaceholderText('provider@lumixy.ps'), 'user@example.com');
-      fireEvent.changeText(screen.getByPlaceholderText('••••••••'), 'password123');
-    });
-
-    const loginTexts = screen.getAllByText('تسجيل الدخول');
-    expect(loginTexts.length).toBeGreaterThanOrEqual(2);
-
-    await act(async () => {
-      fireEvent.press(loginTexts[loginTexts.length - 1]!);
-    });
+    await submitLoginForm();
 
     await waitFor(() => {
       expect(login).toHaveBeenCalledWith({
@@ -107,16 +121,10 @@ describe('LoginScreen', () => {
     });
   });
 
-  it('يعرض رسالة الخطأ عند وجودها', () => {
-    mockedUseAuth.mockReturnValue({
-      error: 'بيانات تسجيل الدخول غير صحيحة.',
-      clearError: jest.fn(),
-      isLoading: () => false,
-      login,
-    } as unknown as ReturnType<typeof useAuth>);
-
+  it('shows the authentication error message when it exists', () => {
+    mockAuth({ error: ERROR_TEXT });
     renderLogin();
 
-    expect(screen.getByText('بيانات تسجيل الدخول غير صحيحة.')).toBeTruthy();
+    expect(screen.getByText(ERROR_TEXT)).toBeTruthy();
   });
 });
