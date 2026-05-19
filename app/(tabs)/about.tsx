@@ -2,9 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,55 +12,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { getAboutContent, type AboutContent } from '@/services/offlight';
 import { typography } from '@/theme';
-
-type ContactItem = {
-  id: string;
-  label: string;
-  value: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  url?: string;
-};
-
-const contactItems: ContactItem[] = [
-  {
-    id: 'email',
-    label: 'البريد الإلكتروني',
-    value: 'lumixy03@gmail.com',
-    icon: 'mail-outline',
-    url: 'mailto:lumixy03@gmail.com',
-  },
-  {
-    id: 'phone',
-    label: 'رقم الهاتف',
-    value: 'غير متوفر حاليًا',
-    icon: 'call-outline',
-  },
-  {
-    id: 'whatsapp',
-    label: 'واتساب',
-    value: 'غير متوفر حاليًا',
-    icon: 'logo-whatsapp',
-  },
-  {
-    id: 'instagram',
-    label: 'إنستغرام',
-    value: '@lumixy.app',
-    icon: 'logo-instagram',
-    url: 'https://instagram.com/lumixy.app',
-  },
-] as const;
 
 function ContactCard({
   label,
   value,
   icon,
-  url,
-}: (typeof contactItems)[number]) {
+}: AboutContent['contacts'][number]) {
   return (
-    <Pressable
-      onPress={url ? () => void Linking.openURL(url) : undefined}
-      style={({ pressed }) => [styles.contactCard, pressed && url && styles.cardPressed]}>
+    <View style={styles.contactCard}>
       <View style={styles.contactMain}>
         <View style={styles.contactIconWrap}>
           <Ionicons
@@ -76,13 +36,38 @@ function ContactCard({
           <Text style={styles.contactValue}>{value}</Text>
         </View>
       </View>
-
-      {url ? <Ionicons name="chevron-back" size={18} color="#61577A" /> : null}
-    </Pressable>
+    </View>
   );
 }
 
 export default function AboutScreen() {
+  const [aboutContent, setAboutContent] = useState<AboutContent | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getAboutContent()
+      .then((content) => {
+        if (isMounted) {
+          setAboutContent(content);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (!aboutContent) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar style="light" />
+        <View style={styles.page} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="light" />
@@ -94,17 +79,16 @@ export default function AboutScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.screenTitle}>حول التطبيق</Text>
+          <Text style={styles.screenTitle}>{aboutContent.screenTitle}</Text>
 
           <View style={styles.brandBlock}>
             <View style={styles.logoFrame}>
               <Text style={styles.logoText}>LUMIXY</Text>
             </View>
 
-            <Text style={styles.brandName}>Lumixy</Text>
+            <Text style={styles.brandName}>{aboutContent.brandName}</Text>
             <Text style={styles.brandDescription}>
-              منصة تربط بين مقدمي الخدمات والعملاء في فلسطين،{'\n'}
-              بطريقة أسهل وأوضح وأكثر احترافية.
+              {aboutContent.brandDescription}
             </Text>
           </View>
 
@@ -117,8 +101,8 @@ export default function AboutScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.ctaCard}>
               <View style={styles.ctaTextWrap}>
-                <Text style={styles.ctaTitle}>هل أنت مقدم خدمة؟</Text>
-                <Text style={styles.ctaText}>انضم إلى المنصة وابدأ بعرض خدماتك للعملاء.</Text>
+                <Text style={styles.ctaTitle}>{aboutContent.ctaTitle}</Text>
+                <Text style={styles.ctaText}>{aboutContent.ctaText}</Text>
               </View>
 
               <View style={styles.ctaIconWrap}>
@@ -131,11 +115,11 @@ export default function AboutScreen() {
 
           <View style={styles.sectionHeader}>
             <Ionicons name="chatbubbles-outline" size={15} color="#9D4DFF" />
-            <Text style={styles.sectionTitle}>تواصل معنا</Text>
+            <Text style={styles.sectionTitle}>{aboutContent.sectionTitle}</Text>
           </View>
 
           <View style={styles.contactsList}>
-            {contactItems.map((item) => (
+            {aboutContent.contacts.map((item) => (
               <ContactCard key={item.id} {...item} />
             ))}
           </View>
