@@ -51,3 +51,4 @@ app-example
 .expo-start.err.log
 Lumixy-backend/
 generated/
+.vscode/
