@@ -170,7 +170,7 @@ function getProviderApiBaseUrl() {
 }
 
 function createApiClient(token?: string) {
-  return axios.create({
+  const client = axios.create({
     baseURL: getProviderApiBaseUrl(),
     timeout: 15000,
     headers: {
@@ -178,6 +178,24 @@ function createApiClient(token?: string) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
+
+  client.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        clearProviderSession();
+        await StorageService.removeSession();
+      }
+
+      return Promise.reject(error);
+    },
+  );
+
+  return client;
+}
+
+export function isUnauthorizedProviderError(error: unknown) {
+  return axios.isAxiosError(error) && error.response?.status === 401;
 }
 
 function getAuthorizedApiClient() {

@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>خريطة صفحات الأدمن - Lumixy</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f7f4fb;
+      color: #171323;
+      font-family: Arial, "Noto Sans Arabic", "Tahoma", sans-serif;
+      line-height: 1.65;
+    }
+
+    .page {
+      background: #ffffff;
+      min-height: 100vh;
+      padding: 26px 30px 34px;
+    }
+
+    .hero {
+      border-radius: 18px;
+      background: linear-gradient(135deg, #2e1065, #6d28d9 62%, #8b5cf6);
+      color: #ffffff;
+      padding: 24px 26px;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 1.6px;
+      opacity: 0.78;
+      margin-bottom: 4px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.35;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 14px;
+    }
+
+    h2 {
+      color: #3b1678;
+      font-size: 18px;
+      margin: 24px 0 10px;
+      border-bottom: 2px solid #e7dcff;
+      padding-bottom: 5px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      border: 1px solid #eadfff;
+      background: #fbf9ff;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .card strong {
+      display: block;
+      color: #4c1d95;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .card span {
+      color: #514766;
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      overflow: hidden;
+      border-radius: 12px;
+      font-size: 11px;
+      page-break-inside: auto;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    tr {
+      page-break-inside: avoid;
+    }
+
+    th {
+      background: #4c1d95;
+      color: #ffffff;
+      padding: 9px 8px;
+      text-align: right;
+      font-size: 11px;
+      border: 1px solid #4c1d95;
+    }
+
+    td {
+      vertical-align: top;
+      padding: 8px;
+      border: 1px solid #e9e2f5;
+      color: #241d34;
+    }
+
+    tbody tr:nth-child(even) td {
+      background: #fbf9ff;
+    }
+
+    code {
+      direction: ltr;
+      unicode-bidi: embed;
+      display: inline-block;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 10px;
+      background: #f2edfb;
+      color: #35116b;
+      border-radius: 5px;
+      padding: 1px 4px;
+      line-height: 1.5;
+    }
+
+    ul {
+      margin: 0;
+      padding: 0 18px 0 0;
+    }
+
+    li {
+      margin-bottom: 3px;
+    }
+
+    .note {
+      border: 1px solid #d8c7ff;
+      background: #f6f0ff;
+      border-radius: 14px;
+      padding: 13px 15px;
+      color: #3b1678;
+      font-size: 12px;
+      margin-top: 14px;
+    }
+
+    .footer {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px solid #eadfff;
+      color: #766a88;
+      font-size: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="eyebrow">LUMIXY ADMIN PANEL</div>
+      <h1>خريطة صفحات الأدمن في الكود</h1>
+      <p class="subtitle">ملخص جاهز للمناقشة: كل صفحة، ملفها، وظيفتها، والملفات أو الـ API المرتبطة معها.</p>
+    </section>
+
+    <section class="summary">
+      <div class="card">
+        <strong>الحماية والجلسة</strong>
+        <span>كل صفحات الأدمن محمية من layout خاص وتعتمد على Context API و SecureStore.</span>
+      </div>
+      <div class="card">
+        <strong>إدارة الداتا</strong>
+        <span>React Query يدير الجلب والكاش والتحديث بعد عمليات approve/delete/update.</span>
+      </div>
+      <div class="card">
+        <strong>فصل الكود</strong>
+        <span>الواجهات في app/components، المنطق في hooks، والطلبات في services.</span>
+      </div>
+    </section>
+
+    <h2>أولاً: صفحات الأدمن</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 15%">الصفحة / Route</th>
+          <th style="width: 24%">ملف الصفحة</th>
+          <th style="width: 31%">وظيفة الصفحة</th>
+          <th style="width: 30%">مرتبطة مع</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>/admin</code></td>
+          <td><code>app/admin/_layout.tsx</code></td>
+          <td>حماية كل صفحات الأدمن. إذا المستخدم ليس admin أو لا توجد جلسة، يتم تحويله إلى صفحة تسجيل الدخول.</td>
+          <td>
+            <ul>
+              <li><code>useAdminSession()</code></li>
+              <li><code>AuthContext</code></li>
+              <li><code>/auth/login</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/tabs</code></td>
+          <td><code>app/admin/tabs/_layout.tsx</code></td>
+          <td>تعريف شريط التنقل السفلي للأدمن: المزودون، الخدمات، الملف الشخصي.</td>
+          <td>
+            <ul>
+              <li><code>expo-router Tabs</code></li>
+              <li><code>Ionicons</code></li>
+              <li><code>MaterialCommunityIcons</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/tabs/index</code></td>
+          <td><code>app/admin/tabs/index.tsx</code></td>
+          <td>صفحة الخدمات/التصنيفات المختصرة داخل التابات، وتعرض جزءاً من التصنيفات مع إمكانية الإدارة.</td>
+          <td>
+            <ul>
+              <li><code>AdminCategoriesScreen mode="preview"</code></li>
+              <li><code>useAdminCategoriesQuery</code></li>
+              <li><code>GET /api/admin/categories</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/all-categories</code></td>
+          <td><code>app/admin/all-categories.tsx</code></td>
+          <td>عرض كل التصنيفات مع البحث والإضافة والتعديل والحذف.</td>
+          <td>
+            <ul>
+              <li><code>AdminCategoriesScreen mode="all"</code></li>
+              <li><code>react-hook-form</code></li>
+              <li><code>POST/PUT/DELETE /api/admin/categories</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/tabs/search</code></td>
+          <td><code>app/admin/tabs/search.tsx</code></td>
+          <td>صفحة إدارة المزودين: عرض، بحث، فلترة حسب الحالة، قبول، رفض، إيقاف، حذف.</td>
+          <td>
+            <ul>
+              <li><code>useAdminProvidersQuery</code></li>
+              <li><code>useApproveProviderMutation</code></li>
+              <li><code>useRejectProviderMutation</code></li>
+              <li><code>useSuspendProviderMutation</code></li>
+              <li><code>useDeleteProviderMutation</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/category-providers</code></td>
+          <td><code>app/admin/category-providers.tsx</code></td>
+          <td>نفس صفحة المزودين، لكن تُستخدم لعرض مزودين تصنيف محدد عبر <code>categoryId</code>.</td>
+          <td>
+            <ul>
+              <li>يعيد تصدير <code>tabs/search</code></li>
+              <li><code>useLocalSearchParams</code></li>
+              <li><code>categoryId</code> و <code>categoryName</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/tabs/profile</code></td>
+          <td><code>app/admin/tabs/profile.tsx</code></td>
+          <td>عرض بيانات الأدمن الحالي وروابط: تعديل المعلومات، إضافة أدمن، إعدادات الأدمن، وتسجيل الخروج.</td>
+          <td>
+            <ul>
+              <li><code>useAdminSession</code></li>
+              <li><code>adminUser</code></li>
+              <li><code>logout()</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/profile-details</code></td>
+          <td><code>app/admin/profile-details.tsx</code></td>
+          <td>تعديل بيانات الأدمن الحالي مثل الاسم، البريد، الهاتف، وكلمة المرور.</td>
+          <td>
+            <ul>
+              <li><code>react-hook-form</code></li>
+              <li><code>useUpdateAdminProfileMutation</code></li>
+              <li><code>PUT /api/admin/auth/profile</code></li>
+              <li><code>refreshProfile()</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/add-admin</code></td>
+          <td><code>app/admin/add-admin.tsx</code></td>
+          <td>إنشاء حساب أدمن جديد من داخل لوحة التحكم.</td>
+          <td>
+            <ul>
+              <li><code>react-hook-form</code></li>
+              <li><code>useCreateAdminMutation</code></li>
+              <li><code>POST /api/admin/admins</code></li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><code>/admin/admin-settings</code></td>
+          <td><code>app/admin/admin-settings.tsx</code></td>
+          <td>عرض كل حسابات الأدمن، ترتيب الحساب الحالي أولاً، وحذف أدمن آخر مع منع حذف الحساب الحالي.</td>
+          <td>
+            <ul>
+              <li><code>useAdminAccountsQuery</code></li>
+              <li><code>useDeleteAdminMutation</code></li>
+              <li><code>sortAdminAccounts</code></li>
+              <li><code>GET/DELETE /api/admin/admins</code></li>
+            </ul>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>ثانياً: الملفات المشتركة التي تخدم صفحات الأدمن</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 28%">الملف</th>
+          <th style="width: 38%">وظيفته</th>
+          <th style="width: 34%">ملاحظات للمناقشة</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>contexts/admin-session-context.tsx</code></td>
+          <td>إدارة جلسة الأدمن: login، logout، تحديث البروفايل، إنشاء أدمن، وقراءة بيانات الأدمن الحالي.</td>
+          <td>مثال قوي على Context API و <code>useCallback</code> و <code>useMemo</code>.</td>
+        </tr>
+        <tr>
+          <td><code>contexts/AuthContext.tsx</code></td>
+          <td>الجلسة العامة للتطبيق: تخزين token/user/role وتوفيرها لكل التطبيق.</td>
+          <td>يعمل فوق <code>SecureStore</code> ويحمي التنقل حسب الدور.</td>
+        </tr>
+        <tr>
+          <td><code>services/storage.ts</code></td>
+          <td>حفظ وقراءة وحذف التوكن وبيانات المستخدم باستخدام <code>expo-secure-store</code>.</td>
+          <td>مهم جداً لسؤال Authentication و secure token storage.</td>
+        </tr>
+        <tr>
+          <td><code>services/admin-api.ts</code></td>
+          <td>كل طلبات API الخاصة بالأدمن: المزودين، التصنيفات، حسابات الأدمن، وتعديل البروفايل.</td>
+          <td>يفصل منطق الاتصال بالباك عن الواجهة.</td>
+        </tr>
+        <tr>
+          <td><code>services/admin-auth-api.ts</code></td>
+          <td>طلبات login/logout/me الخاصة بالأدمن.</td>
+          <td>يعتمد على <code>apiRequest</code> ويستخدم token عند الطلبات المحمية.</td>
+        </tr>
+        <tr>
+          <td><code>services/api.ts</code></td>
+          <td>طبقة الاتصال العامة: Axios، بناء رابط API، إضافة Authorization، وتحويل الأخطاء إلى رسائل مقروءة.</td>
+          <td>مكان ممتاز لشرح error handling و Axios.</td>
+        </tr>
+        <tr>
+          <td><code>hooks/admin/use-admin-providers.ts</code></td>
+          <td>جلب المزودين وتحويل شكل الداتا للواجهة، وإدارة mutations للقبول/الرفض/الإيقاف/الحذف.</td>
+          <td>مثال واضح على TanStack Query و query invalidation.</td>
+        </tr>
+        <tr>
+          <td><code>hooks/admin/use-admin-categories.ts</code></td>
+          <td>جلب التصنيفات وإضافة/تعديل/حذف تصنيف مع تحديث الكاش.</td>
+          <td>Custom hook ينظف الصفحات من منطق API.</td>
+        </tr>
+        <tr>
+          <td><code>hooks/admin/use-admin-accounts.ts</code></td>
+          <td>جلب حسابات الأدمن، إنشاء أدمن، حذف أدمن، وتحديث بروفايل الأدمن.</td>
+          <td>يستخدم React Query و Haptics feedback بعد النجاح.</td>
+        </tr>
+        <tr>
+          <td><code>components/admin/admin-categories-screen.tsx</code></td>
+          <td>كومبوننت كامل لإدارة التصنيفات، يستخدم في صفحتين بوضعين مختلفين.</td>
+          <td>مثال على إعادة استخدام الكومبوننت و <code>useRef</code> و <code>react-hook-form</code>.</td>
+        </tr>
+        <tr>
+          <td><code>components/admin/admin-detail-shell.tsx</code></td>
+          <td>قالب موحد لصفحات التفاصيل في الأدمن مع header، زر رجوع، notice، و scroll layout.</td>
+          <td>يساعد على توحيد UI/UX بين صفحات الأدمن.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>ثالثاً: روابط الباك المرتبطة بالأدمن</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 24%">Controller</th>
+          <th style="width: 38%">Routes</th>
+          <th style="width: 38%">وظيفتها</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>AdminAuthController</code></td>
+          <td>
+            <code>POST /admin/auth/login</code><br />
+            <code>GET /admin/me</code><br />
+            <code>POST /admin/auth/logout</code><br />
+            <code>PUT /admin/auth/profile</code><br />
+            <code>GET/POST/DELETE /admin/admins</code>
+          </td>
+          <td>تسجيل دخول الأدمن، قراءة بياناته، تعديل بروفايله، وإدارة حسابات الأدمن.</td>
+        </tr>
+        <tr>
+          <td><code>AdminProviderController</code></td>
+          <td>
+            <code>GET /admin/providers</code><br />
+            <code>GET /admin/providers/pending</code><br />
+            <code>POST /admin/providers/{id}/approve</code><br />
+            <code>POST /admin/providers/{id}/reject</code><br />
+            <code>POST /admin/providers/{id}/suspend</code><br />
+            <code>DELETE /admin/providers/{id}</code>
+          </td>
+          <td>إدارة طلبات ومعلومات المزودين من لوحة الأدمن.</td>
+        </tr>
+        <tr>
+          <td><code>AdminCategoryController</code></td>
+          <td>
+            <code>GET /admin/categories</code><br />
+            <code>POST /admin/categories</code><br />
+            <code>PUT /admin/categories/{id}</code><br />
+            <code>DELETE /admin/categories/{id}</code>
+          </td>
+          <td>إدارة التصنيفات وعرض عدد المزودين داخل كل تصنيف.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      جملة مختصرة للمناقشة: لوحة الأدمن مبنية بفصل واضح بين الواجهة والخدمات؛ الصفحات تعرض UI فقط، hooks تدير React Query والـ mutations، services تتعامل مع Axios والـ API، و Context API يدير الجلسة والتوكن المخزن في SecureStore.
+    </div>
+
+    <h2>رابعاً: وظيفة المكتبات والمفاهيم بشكل عام</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 28%">المكتبة / المفهوم</th>
+          <th style="width: 52%">وظيفتها بشكل عام</th>
+          <th style="width: 20%">مثال استخدام</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>react-hook-form</code></td>
+          <td>مكتبة لإدارة النماذج داخل React و React Native. تساعد على قراءة قيم الحقول، التحقق من المدخلات، عرض رسائل الخطأ، وتقليل إعادة التصيير غير الضرورية مقارنة بإدارة كل input يدوياً.</td>
+          <td>Login form، Add form، Edit profile form.</td>
+        </tr>
+        <tr>
+          <td><code>TanStack React Query</code></td>
+          <td>مكتبة لإدارة بيانات السيرفر داخل الواجهة. تهتم بجلب البيانات، الكاش، حالات التحميل والخطأ، إعادة الجلب، وتحديث البيانات بعد عمليات مثل الإضافة والحذف والتعديل.</td>
+          <td><code>useQuery</code> للقراءة و <code>useMutation</code> للتعديل.</td>
+        </tr>
+        <tr>
+          <td>Device Features</td>
+          <td>استخدام ميزات الجهاز الحقيقية مثل الكاميرا، الميكروفون، الموقع، البصمة أو Face ID. تضيف للتطبيق تفاعل مباشر مع الهاتف بدل أن يكون مجرد صفحات عادية.</td>
+          <td>اختيار صورة، التقاط صورة، قراءة location، Face ID login.</td>
+        </tr>
+        <tr>
+          <td>UI/UX</td>
+          <td>تصميم الواجهة وتجربة الاستخدام. UI يهتم بشكل العناصر والألوان والتنسيق، بينما UX يهتم بسهولة الاستخدام، وضوح الخطوات، سرعة الوصول للمعلومة، وحالات التحميل والخطأ.</td>
+          <td>Cards، tabs، buttons واضحة، loading/error states.</td>
+        </tr>
+        <tr>
+          <td>SQLite</td>
+          <td>قاعدة بيانات محلية خفيفة تعمل داخل الجهاز. تستخدم لتخزين بيانات offline حتى يستطيع المستخدم فتح صفحة أو قراءة بيانات بدون اتصال إنترنت.</td>
+          <td>صفحة مفضلة أو ملاحظات تعمل بدون شبكة.</td>
+        </tr>
+        <tr>
+          <td>Test Case</td>
+          <td>اختبار برمجي يتأكد أن جزء من التطبيق يعمل كما هو متوقع. يمكن أن يختبر كومبوننت، دالة، أو سلوك معين مثل ظهور نص أو تنفيذ زر.</td>
+          <td>اختبار أن Button يعرض loading عند الضغط.</td>
+        </tr>
+        <tr>
+          <td><code>Axios</code></td>
+          <td>مكتبة لإرسال طلبات HTTP بين الفرونت والباك. تستخدم لتنفيذ GET و POST و PUT و DELETE، وتسهّل إضافة headers مثل Authorization ومعالجة الأخطاء.</td>
+          <td>Login request، fetch users، delete item.</td>
+        </tr>
+        <tr>
+          <td>File Structure</td>
+          <td>طريقة ترتيب ملفات المشروع في مجلدات واضحة حسب المسؤولية. الهدف أن يكون المشروع سهل الفهم والتوسعة والصيانة.</td>
+          <td><code>screens</code>، <code>components</code>، <code>hooks</code>، <code>services</code>.</td>
+        </tr>
+        <tr>
+          <td>Clean Code & Best Practices</td>
+          <td>كتابة كود واضح، مقروء، قابل للصيانة، ويفصل المسؤوليات. يشمل تسمية جيدة، تقليل التكرار، تقسيم الكود، ومعالجة الحالات المختلفة بشكل منظم.</td>
+          <td>فصل API في services بدل كتابته داخل الشاشة.</td>
+        </tr>
+        <tr>
+          <td>Custom Hooks</td>
+          <td>دوال React تبدأ بـ <code>use</code> وتجمع منطقاً قابلاً لإعادة الاستخدام. تساعد على نقل logic خارج الكومبوننت حتى تبقى الواجهة أنظف.</td>
+          <td><code>useAuth</code>، <code>useUsersQuery</code>، <code>usePersistedState</code>.</td>
+        </tr>
+        <tr>
+          <td>Context API</td>
+          <td>ميزة من React لمشاركة state أو functions بين أجزاء التطبيق بدون تمرير props في كل مستوى. مناسبة للجلسة، الثيم، اللغة، أو بيانات المستخدم العامة.</td>
+          <td>Auth context، Theme context، Language context.</td>
+        </tr>
+        <tr>
+          <td>Async Storage</td>
+          <td>تخزين محلي غير حساس على الجهاز بنظام key-value. يستخدم لحفظ تفضيلات أو بيانات بسيطة لا تحتاج حماية عالية.</td>
+          <td>حفظ theme، آخر بحث، إعدادات المستخدم.</td>
+        </tr>
+        <tr>
+          <td>Error Handling</td>
+          <td>التعامل مع الأخطاء بطريقة منظمة بدل أن ينهار التطبيق. يشمل التقاط أخطاء الشبكة، أخطاء التحقق، أخطاء الصلاحيات، وعرض رسالة واضحة للمستخدم.</td>
+          <td>رسالة عند فشل login أو انقطاع الإنترنت.</td>
+        </tr>
+        <tr>
+          <td><code>useCallback</code></td>
+          <td>Hook يحفظ نفس نسخة الدالة بين عمليات التصيير ما دامت dependencies لم تتغير. يستخدم لتقليل إعادة التصيير وتمرير دوال ثابتة للكومبوننتات.</td>
+          <td>تثبيت function مثل <code>logout</code> أو <code>submitForm</code>.</td>
+        </tr>
+        <tr>
+          <td><code>useMemo</code></td>
+          <td>Hook يحفظ نتيجة عملية حسابية ويعيد حسابها فقط عند تغير dependencies. مفيد مع الفلترة، الترتيب، أو العمليات المكلفة.</td>
+          <td>فلترة list حسب البحث والحالة.</td>
+        </tr>
+        <tr>
+          <td><code>useRef</code></td>
+          <td>Hook يحتفظ بقيمة قابلة للتغيير بدون أن يسبب إعادة تصيير. يستخدم للوصول لعناصر UI أو حفظ قيمة بين renders.</td>
+          <td>التحكم بـ ScrollView أو TextInput focus.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Lumixy Admin Pages Map - generated for project discussion
+    </div>
+  </main>
+</body>
+</html>

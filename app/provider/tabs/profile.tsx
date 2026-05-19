@@ -18,6 +18,7 @@ import {
   extractErrorMessage,
   fetchProviderProfile,
   fetchProviderStatus,
+  isUnauthorizedProviderError,
   logoutProvider,
   providerProfileQueryKey,
   providerStatusQueryKey,
@@ -68,6 +69,18 @@ export default function ProviderProfileScreen() {
       router.replace('/auth/login');
     }
   }, [session, sessionQuery.isLoading]);
+
+  useEffect(() => {
+    if (
+      isUnauthorizedProviderError(profileQuery.error) ||
+      isUnauthorizedProviderError(statusQuery.error)
+    ) {
+      queryClient.removeQueries({ queryKey: providerSessionQueryKey });
+      queryClient.removeQueries({ queryKey: providerProfileQueryKey });
+      queryClient.removeQueries({ queryKey: providerStatusQueryKey });
+      router.replace('/auth/login');
+    }
+  }, [profileQuery.error, queryClient, statusQuery.error]);
 
   useEffect(() => {
     if (
