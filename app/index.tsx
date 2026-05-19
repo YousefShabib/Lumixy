@@ -1,62 +1,46 @@
-import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Redirect, router } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
 
+import { useAuthContext } from '@/contexts/AuthContext';
+import { getRouteForUser } from '@/services/authRoutes';
 import { colors, Logo } from '@/theme';
 
-export default function SplachScreen() {
-  const router = useRouter();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 4,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    const timer = setTimeout(() => {
-      router.replace('/entry');
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [fadeAnim, router, scaleAnim]);
-
+function SplashLogo() {
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
-          },
-        ]}>
-        <Logo size="large" />
-      </Animated.View>
+    <View
+      style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.background,
+      }}>
+      <Logo size="large" />
+      <ActivityIndicator color={colors.primaryLight} style={{ marginTop: 24 }} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default function IndexScreen() {
+  const { isAuthenticated, isHydrating, user } = useAuthContext();
+
+  useEffect(() => {
+    if (!isHydrating && !isAuthenticated) {
+      const timeout = setTimeout(() => {
+        router.replace('/entry');
+      }, 1500);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [isAuthenticated, isHydrating]);
+
+  if (isHydrating) {
+    return <SplashLogo />;
+  }
+
+  if (isAuthenticated && user) {
+    return <Redirect href={getRouteForUser(user)} />;
+  }
+
+  return <SplashLogo />;
+}

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+
 import { colors } from './colors';
 
 interface LogoProps {
@@ -7,29 +8,29 @@ interface LogoProps {
   style?: ViewStyle;
 }
 
-export const Logo = ({ size = 'medium', style }: LogoProps) => {
+export function Logo({ size = 'medium', style }: LogoProps) {
   const isSmall = size === 'small';
   const isLarge = size === 'large';
 
-  const boxSize = isSmall ? 72 : isLarge ? 236 : 124;
-  const fontSize = isSmall ? 14 : isLarge ? 40 : 22;
-  const borderRadius = isSmall ? 20 : isLarge ? 62 : 34;
+  const boxSize = isSmall ? 72 : isLarge ? 200 : 124;
+  const fontSize = isSmall ? 14 : isLarge ? 34 : 22;
+  const borderRadius = isSmall ? 20 : isLarge ? 52 : 34;
 
   return (
     <View style={[styles.logoBox, { width: boxSize, height: boxSize, borderRadius }, style]}>
       <Text style={[styles.logoText, { fontSize }]}>LUMIXY</Text>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   logoBox: {
-    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
     borderWidth: 2,
     borderColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
+    backgroundColor: '#000',
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.35,
