@@ -28,7 +28,7 @@ yarn-debug.*
 yarn-error.*
 
 # editors
-.vscode/
+/.vscode/
 
 # macOS
 .DS_Store
